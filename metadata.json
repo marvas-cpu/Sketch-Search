@@ -1,5 +1,5 @@
 {
-  "name": "SketchSearch",
-  "description": "A playful, high-contrast creative search engine with an animated sketches theme.",
+  "name": "Pose Lab",
+  "description": "A cartoon-style tutorial hub for human body sketches, powered by Supabase.",
   "requestFramePermissions": []
 }
