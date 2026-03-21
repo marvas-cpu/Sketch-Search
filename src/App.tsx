@@ -54,6 +54,11 @@ export default function App() {
   }, [session]);
 
   const fetchTutorials = async () => {
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('Supabase environment variables are missing!');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('tutorials')
       .select('*');
@@ -178,7 +183,12 @@ export default function App() {
 
         {/* Tutorial Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl">
-          {tutorials.length === 0 ? (
+          {(!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) ? (
+            <div className="col-span-full text-center p-20 border-8 border-dashed border-red-600/20 rounded-[3rem] bg-red-50">
+              <p className="text-4xl font-bold text-red-600">SUPABASE NOT CONFIGURED! ⚠️</p>
+              <p className="text-xl font-bold mt-4 opacity-70">Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the AI Studio Secrets panel!</p>
+            </div>
+          ) : tutorials.length === 0 ? (
             <div className="col-span-full text-center p-20 border-8 border-dashed border-navy/20 rounded-[3rem]">
               <p className="text-4xl font-bold opacity-30">NO TUTORIALS YET! <br /> ADD THEM IN SUPABASE!</p>
             </div>

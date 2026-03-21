@@ -10,16 +10,19 @@ export const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [message, setMessage] = useState<string | null>(null);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
 
     try {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        alert('Check your email for the confirmation link!');
+        setMessage('Check your email for the confirmation link! ✉️');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -71,6 +74,12 @@ export const Auth = () => {
             <div className="flex items-center gap-2 text-red-600 font-bold bg-red-50 p-4 rounded-xl border-2 border-red-600">
               <AlertCircle size={20} />
               <span>{error}</span>
+            </div>
+          )}
+
+          {message && (
+            <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 p-4 rounded-xl border-2 border-green-600">
+              <span>{message}</span>
             </div>
           )}
 
