@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from './lib/supabase';
+import { Auth } from './components/Auth';
+import { Session } from '@supabase/supabase-js';
 
 const SketchIcon = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <motion.div
@@ -23,6 +26,51 @@ const SketchIcon = ({ children, label }: { children: React.ReactNode; label: str
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-16 h-16 border-8 border-navy border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+        <div className="flex items-center gap-2 mb-12">
+          <div className="w-12 h-12 border-4 border-navy rounded-lg flex items-center justify-center rotate-3">
+            <Search size={28} strokeWidth={3} />
+          </div>
+          <span className="text-4xl font-bold tracking-tighter">SKETCH SEARCH</span>
+        </div>
+        <Auth />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col selection:bg-navy selection:text-white">
@@ -36,10 +84,16 @@ export default function App() {
         </div>
 
         {/* Desktop Menu */}
-        <div className="hidden md:flex gap-8 text-xl font-bold">
+        <div className="hidden md:flex gap-8 text-xl font-bold items-center">
           <a href="#" className="hover:underline decoration-4 underline-offset-4">EXPLORE</a>
           <a href="#" className="hover:underline decoration-4 underline-offset-4">COLLECTIONS</a>
-          <a href="#" className="hover:underline decoration-4 underline-offset-4">ABOUT</a>
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 border-4 border-navy rounded-xl hover:bg-navy hover:text-white transition-all"
+          >
+            <LogOut size={20} />
+            <span>LOG OUT</span>
+          </button>
         </div>
 
         <button 
@@ -61,7 +115,16 @@ export default function App() {
           >
             <a href="#" onClick={() => setIsMenuOpen(false)}>EXPLORE</a>
             <a href="#" onClick={() => setIsMenuOpen(false)}>COLLECTIONS</a>
-            <a href="#" onClick={() => setIsMenuOpen(false)}>ABOUT</a>
+            <button 
+              onClick={() => {
+                handleLogout();
+                setIsMenuOpen(false);
+              }}
+              className="flex items-center gap-4 text-red-600"
+            >
+              <LogOut size={32} />
+              <span>LOG OUT</span>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
