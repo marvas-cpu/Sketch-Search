@@ -82,7 +82,7 @@ export default function App() {
           >
             <User size={28} strokeWidth={3} />
           </motion.div>
-          <span className="text-4xl font-bold tracking-tighter">POSE LAB</span>
+          <span className="text-4xl font-bold tracking-tighter">SKETCH SEARCH</span>
         </div>
 
         {/* Desktop Menu */}
@@ -243,7 +243,7 @@ export default function App() {
       <footer className="p-12 bg-navy text-white border-t-8 border-white relative z-10">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
-            <div className="text-5xl font-bold mb-6 tracking-tighter">POSE LAB</div>
+            <div className="text-5xl font-bold mb-6 tracking-tighter">SKETCH SEARCH</div>
             <p className="text-xl opacity-70 max-w-md font-bold">
               Learn to draw the human body with our fun, sketchy tutorials. No talent required, just a pencil and a dream!
             </p>
@@ -265,7 +265,7 @@ export default function App() {
           </div>
         </div>
         <div className="mt-16 pt-12 border-t-4 border-white/20 text-center opacity-50 font-black text-xl tracking-widest">
-          © 2026 POSE LAB. KEEP SKETCHING!
+          © 2026 SKETCH SEARCH. KEEP SKETCHING!
         </div>
       </footer>
     </div>
