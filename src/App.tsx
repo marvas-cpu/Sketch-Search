@@ -32,21 +32,26 @@ export default function App() {
   }, []);
 
   const fetchTutorials = async () => {
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      console.error('Supabase environment variables are missing!');
-      return;
-    }
+    try {
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        console.error('Supabase environment variables are missing!');
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from('tutorials')
-      .select('*');
-    
-    if (error) {
-      console.error('Error fetching tutorials:', error);
-    } else {
-      setTutorials(data || []);
+      const { data, error } = await supabase
+        .from('tutorials')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching tutorials:', error);
+      } else {
+        setTutorials(data || []);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching tutorials:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (loading) {
