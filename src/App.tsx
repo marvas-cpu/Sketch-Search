@@ -73,7 +73,7 @@ export default function App() {
           <motion.div 
             animate={{ rotate: [3, -3, 3] }}
             transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            className="w-12 h-12 border-4 border-navy rounded-xl flex items-center justify-center bg-yellow-300"
+            className="w-12 h-12 border-4 border-navy rounded-xl flex items-center justify-center bg-sky-400"
           >
             <User size={28} strokeWidth={3} />
           </motion.div>
@@ -118,7 +118,7 @@ export default function App() {
         >
           <h1 className="text-7xl md:text-9xl font-bold mb-6 leading-none tracking-tighter">
             MASTER THE <br />
-            <span className="bg-navy text-white px-8 py-2 inline-block -rotate-2 rounded-3xl shadow-[10px_10px_0px_0px_rgba(253,224,71,1)]">HUMAN BODY</span>
+            <span className="bg-navy text-white px-8 py-2 inline-block -rotate-2 rounded-3xl shadow-[10px_10px_0px_0px_rgba(56,189,248,1)]">HUMAN BODY</span>
           </h1>
           <p className="text-2xl md:text-3xl font-bold opacity-80 max-w-3xl mx-auto mt-8">
             Pick a pose and start sketching! Our cartoon-style tutorials will guide you through every muscle and bone.
@@ -152,7 +152,7 @@ export default function App() {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-6 right-6 bg-yellow-300 border-4 border-navy px-4 py-1 rounded-full font-bold text-lg rotate-12">
+                  <div className="absolute top-6 right-6 bg-sky-400 border-4 border-navy px-4 py-1 rounded-full font-bold text-lg rotate-12">
                     {tutorial.difficulty || 'BEGINNER'}
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export default function App() {
               initial={{ scale: 0.8, y: 50 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.8, y: 50 }}
-              className="bg-white border-8 border-navy rounded-[4rem] w-full max-w-5xl max-h-[90vh] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(253,224,71,1)]"
+              className="bg-white border-8 border-navy rounded-[4rem] w-full max-w-5xl max-h-[90vh] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
             >
               <button 
                 onClick={() => setSelectedTutorial(null)}
@@ -204,7 +204,7 @@ export default function App() {
                   />
                 </div>
                 <div className="p-12 md:p-20">
-                  <div className="inline-block bg-yellow-300 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-8 -rotate-2">
+                  <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-8 -rotate-2">
                     {selectedTutorial.category || 'POSE STUDY'}
                   </div>
                   <h2 className="text-6xl font-bold mb-8 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
@@ -217,14 +217,14 @@ export default function App() {
                     <ul className="space-y-4">
                       {['Start with basic circles', 'Focus on the line of action', 'Keep your strokes loose!'].map((tip, i) => (
                         <li key={i} className="flex items-center gap-4 text-xl font-bold">
-                          <div className="w-8 h-8 border-4 border-navy rounded-lg bg-yellow-300 flex-shrink-0" />
+                          <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400 flex-shrink-0" />
                           {tip}
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  <button className="mt-16 w-full py-6 bg-navy text-white rounded-3xl text-3xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[8px_8px_0px_0px_rgba(253,224,71,1)]">
+                  <button className="mt-16 w-full py-6 bg-navy text-white rounded-3xl text-3xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[8px_8px_0px_0px_rgba(56,189,248,1)]">
                     DOWNLOAD SKETCH
                   </button>
                 </div>
@@ -246,16 +246,16 @@ export default function App() {
           <div>
             <h4 className="text-2xl font-bold mb-8 uppercase tracking-widest">Socials</h4>
             <div className="flex gap-8">
-              <a href="#" className="hover:scale-150 transition-transform hover:text-yellow-300"><Twitter size={32} strokeWidth={3} /></a>
-              <a href="#" className="hover:scale-150 transition-transform hover:text-yellow-300"><Github size={32} strokeWidth={3} /></a>
-              <a href="#" className="hover:scale-150 transition-transform hover:text-yellow-300"><Info size={32} strokeWidth={3} /></a>
+              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400"><Twitter size={32} strokeWidth={3} /></a>
+              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400"><Github size={32} strokeWidth={3} /></a>
+              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400"><Info size={32} strokeWidth={3} /></a>
             </div>
           </div>
           <div>
             <h4 className="text-2xl font-bold mb-8 uppercase tracking-widest">Legal Stuff</h4>
             <ul className="space-y-4 opacity-70 font-bold text-lg">
-              <li><a href="#" className="hover:opacity-100 hover:text-yellow-300">Privacy</a></li>
-              <li><a href="#" className="hover:opacity-100 hover:text-yellow-300">Terms</a></li>
+              <li><a href="#" className="hover:opacity-100 hover:text-sky-400">Privacy</a></li>
+              <li><a href="#" className="hover:opacity-100 hover:text-sky-400">Terms</a></li>
             </ul>
           </div>
         </div>
