@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info } from 'lucide-react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 
@@ -70,6 +70,17 @@ export default function App() {
         <div className="absolute bottom-20 right-10 -rotate-12"><TreeDeciduous size={150} /></div>
         <div className="absolute top-1/2 left-1/4 -rotate-6"><User size={100} /></div>
         <div className="absolute top-1/3 right-1/4 rotate-45"><Search size={80} /></div>
+        <div className="absolute top-10 right-1/3 -rotate-12"><Pencil size={90} /></div>
+        <div className="absolute bottom-1/4 left-10 rotate-12"><Palette size={110} /></div>
+        <div className="absolute top-1/4 right-10 -rotate-45"><Eraser size={70} /></div>
+        <div className="absolute bottom-10 left-1/3 rotate-6"><Frame size={130} /></div>
+        <div className="absolute top-1/2 right-1/3 rotate-12"><ImageIcon size={100} /></div>
+        <div className="absolute bottom-1/3 right-1/4 -rotate-12"><Shapes size={120} /></div>
+        <div className="absolute top-1/4 left-1/3 rotate-45"><Smile size={80} /></div>
+        <div className="absolute bottom-1/2 left-1/4 -rotate-12"><Star size={90} /></div>
+        <div className="absolute top-10 left-1/2 -rotate-6"><Heart size={70} /></div>
+        <div className="absolute top-3/4 right-10 rotate-12"><Cloud size={140} /></div>
+        <div className="absolute top-5 right-5 rotate-12"><Sun size={100} /></div>
       </div>
 
       {/* Navigation */}
