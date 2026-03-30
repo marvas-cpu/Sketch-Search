@@ -4,11 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, LogOut } from 'lucide-react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
-import { Auth } from './components/Auth';
-import { Session } from '@supabase/supabase-js';
 
 const SketchIcon = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <motion.div
@@ -25,33 +23,13 @@ const SketchIcon = ({ children, label }: { children: React.ReactNode; label: str
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    fetchTutorials();
   }, []);
-
-  useEffect(() => {
-    if (session) {
-      fetchTutorials();
-    }
-  }, [session]);
 
   const fetchTutorials = async () => {
     if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
@@ -68,30 +46,13 @@ export default function App() {
     } else {
       setTutorials(data || []);
     }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+    setLoading(false);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="w-16 h-16 border-8 border-navy border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
-        <div className="flex items-center gap-2 mb-12">
-          <div className="w-12 h-12 border-4 border-navy rounded-lg flex items-center justify-center rotate-3">
-            <Search size={28} strokeWidth={3} />
-          </div>
-          <span className="text-4xl font-bold tracking-tighter">SKETCH SEARCH</span>
-        </div>
-        <Auth />
       </div>
     );
   }
@@ -123,13 +84,6 @@ export default function App() {
         <div className="hidden md:flex gap-8 text-xl font-bold items-center">
           <a href="#" className="hover:scale-110 transition-transform hover:text-blue-600">TUTORIALS</a>
           <a href="#" className="hover:scale-110 transition-transform hover:text-blue-600">MY SKETCHES</a>
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-6 py-3 border-4 border-navy rounded-2xl bg-white shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
-          >
-            <LogOut size={20} strokeWidth={3} />
-            <span>BYE BYE!</span>
-          </button>
         </div>
 
         <button 
@@ -151,16 +105,6 @@ export default function App() {
           >
             <a href="#" onClick={() => setIsMenuOpen(false)}>TUTORIALS</a>
             <a href="#" onClick={() => setIsMenuOpen(false)}>MY SKETCHES</a>
-            <button 
-              onClick={() => {
-                handleLogout();
-                setIsMenuOpen(false);
-              }}
-              className="flex items-center gap-4 text-red-600"
-            >
-              <LogOut size={48} strokeWidth={3} />
-              <span>LOG OUT</span>
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
