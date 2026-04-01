@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
+import SketchCanvas from './components/SketchCanvas';
 
 const SketchIcon = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <motion.div
@@ -210,39 +211,51 @@ export default function App() {
                 <X size={40} strokeWidth={4} />
               </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                <div className="bg-navy/5 border-r-8 border-navy">
-                  <img 
-                    src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
-                    alt={selectedTutorial.title}
-                    className="w-full h-full object-contain p-12"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div className="p-12 md:p-20">
-                  <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-8 -rotate-2">
-                    {selectedTutorial.category || 'POSE STUDY'}
-                  </div>
-                  <h2 className="text-6xl font-bold mb-8 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
-                  <p className="text-2xl opacity-80 mb-12 font-medium leading-relaxed">
-                    {selectedTutorial.description}
-                  </p>
-                  
-                  <div className="space-y-6">
-                    <h4 className="text-3xl font-bold uppercase">Pro Tips:</h4>
-                    <ul className="space-y-4">
-                      {['Start with basic circles', 'Focus on the line of action', 'Keep your strokes loose!'].map((tip, i) => (
-                        <li key={i} className="flex items-center gap-4 text-xl font-bold">
-                          <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400 flex-shrink-0" />
-                          {tip}
-                        </li>
-                      ))}
-                    </ul>
+              <div className="flex flex-col lg:grid lg:grid-cols-2">
+                <div className="bg-navy/5 border-b-8 lg:border-b-0 lg:border-r-8 border-navy flex flex-col items-center p-8">
+                  <div className="w-full max-w-md mb-8">
+                    <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2">
+                      {selectedTutorial.category || 'POSE STUDY'}
+                    </div>
+                    <h2 className="text-5xl font-bold mb-6 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
+                    <p className="text-xl opacity-80 mb-8 font-medium leading-relaxed">
+                      {selectedTutorial.description}
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <h4 className="text-2xl font-bold uppercase">Pro Tips:</h4>
+                      <ul className="space-y-3">
+                        {['Start with basic circles', 'Focus on the line of action', 'Keep your strokes loose!'].map((tip, i) => (
+                          <li key={i} className="flex items-center gap-3 text-lg font-bold">
+                            <div className="w-6 h-6 border-4 border-navy rounded-lg bg-sky-400 flex-shrink-0" />
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
 
-                  <button className="mt-16 w-full py-6 bg-navy text-white rounded-3xl text-3xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[8px_8px_0px_0px_rgba(56,189,248,1)]">
-                    DOWNLOAD SKETCH
-                  </button>
+                  <div className="w-full max-w-md bg-white border-4 border-navy rounded-3xl p-6 shadow-[8px_8px_0px_0px_rgba(0,0,128,1)]">
+                    <h4 className="text-xl font-bold mb-4 uppercase">Reference Pose:</h4>
+                    <img 
+                      src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
+                      alt={selectedTutorial.title}
+                      className="w-full h-auto rounded-xl border-4 border-navy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-8 lg:p-12 bg-sky-50/50">
+                  <div className="text-center mb-8">
+                    <h3 className="text-4xl font-bold uppercase tracking-tight">Your Canvas</h3>
+                    <p className="text-lg font-bold opacity-60">Practice the pose below and get AI feedback!</p>
+                  </div>
+                  
+                  <SketchCanvas 
+                    tutorialTitle={selectedTutorial.title} 
+                    tutorialDescription={selectedTutorial.description} 
+                  />
                 </div>
               </div>
             </motion.div>
