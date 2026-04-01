@@ -202,7 +202,7 @@ export default function App() {
               initial={{ scale: 0.8, y: 50 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.8, y: 50 }}
-              className="bg-white border-8 border-navy rounded-[4rem] w-full max-w-[1080px] min-h-[800px] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
+              className="bg-white border-8 border-navy rounded-[4rem] w-[95vw] max-w-[1200px] max-h-[90vh] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
             >
               <button 
                 onClick={() => setSelectedTutorial(null)}
@@ -221,19 +221,19 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[600px]">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Left Column: Reference Pose */}
-                <div className="p-12 border-b-8 lg:border-b-0 lg:border-r-8 border-navy flex flex-col items-center justify-center bg-white">
-                  <div className="w-full h-full flex flex-col items-center">
+                <div className="p-8 lg:p-12 border-b-8 lg:border-b-0 lg:border-r-8 border-navy flex flex-col items-center justify-center bg-white">
+                  <div className="w-full flex flex-col items-center">
                     <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
                       <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                       Reference Pose
                     </h3>
-                    <div className="flex-grow flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)]">
+                    <div className="flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)]">
                       <img 
                         src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
                         alt={selectedTutorial.title}
-                        className="max-w-full max-h-[450px] object-contain rounded-xl"
+                        className="max-w-full max-h-[400px] object-contain rounded-xl"
                         referrerPolicy="no-referrer"
                       />
                     </div>
@@ -251,15 +251,17 @@ export default function App() {
                 </div>
 
                 {/* Right Column: Sketch Canvas */}
-                <div className="p-12 bg-sky-50/50 flex flex-col items-center justify-center">
+                <div className="p-8 lg:p-12 bg-sky-50/50 flex flex-col items-center justify-center">
                   <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
                     <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                     Your Canvas
                   </h3>
-                  <SketchCanvas 
-                    tutorialTitle={selectedTutorial.title} 
-                    tutorialDescription={selectedTutorial.description} 
-                  />
+                  <div className="w-full flex justify-center">
+                    <SketchCanvas 
+                      tutorialTitle={selectedTutorial.title} 
+                      tutorialDescription={selectedTutorial.description} 
+                    />
+                  </div>
                 </div>
               </div>
             </motion.div>

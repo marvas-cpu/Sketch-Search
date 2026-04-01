@@ -102,7 +102,7 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
         </button>
       </div>
 
-      <div className="relative border-8 border-navy rounded-[2rem] overflow-hidden bg-white shadow-[10px_10px_0px_0px_rgba(0,0,128,1)]">
+      <div className="relative border-8 border-navy rounded-[2rem] overflow-hidden bg-white shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] max-w-full [&>div>canvas]:max-w-full [&>div>canvas]:h-auto">
         <Sketch setup={setup} draw={draw} />
       </div>
 
