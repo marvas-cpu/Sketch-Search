@@ -202,56 +202,60 @@ export default function App() {
               initial={{ scale: 0.8, y: 50 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.8, y: 50 }}
-              className="bg-white border-8 border-navy rounded-[4rem] w-full max-w-5xl max-h-[90vh] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
+              className="bg-white border-8 border-navy rounded-[4rem] w-full max-w-[1080px] min-h-[800px] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
             >
               <button 
                 onClick={() => setSelectedTutorial(null)}
-                className="absolute top-8 right-8 p-4 bg-navy text-white rounded-full hover:rotate-90 transition-transform z-10"
+                className="absolute top-8 right-8 p-4 bg-navy text-white rounded-full hover:rotate-90 transition-transform z-50"
               >
                 <X size={40} strokeWidth={4} />
               </button>
 
-              <div className="flex flex-col lg:grid lg:grid-cols-2">
-                <div className="bg-navy/5 border-b-8 lg:border-b-0 lg:border-r-8 border-navy flex flex-col items-center p-8">
-                  <div className="w-full max-w-md mb-8">
-                    <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2">
-                      {selectedTutorial.category || 'POSE STUDY'}
-                    </div>
-                    <h2 className="text-5xl font-bold mb-6 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
-                    <p className="text-xl opacity-80 mb-8 font-medium leading-relaxed">
-                      {selectedTutorial.description}
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <h4 className="text-2xl font-bold uppercase">Pro Tips:</h4>
-                      <ul className="space-y-3">
-                        {['Start with basic circles', 'Focus on the line of action', 'Keep your strokes loose!'].map((tip, i) => (
-                          <li key={i} className="flex items-center gap-3 text-lg font-bold">
-                            <div className="w-6 h-6 border-4 border-navy rounded-lg bg-sky-400 flex-shrink-0" />
-                            {tip}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
+              <div className="p-12 border-b-8 border-navy bg-sky-50/30">
+                <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2">
+                  {selectedTutorial.category || 'POSE STUDY'}
+                </div>
+                <h2 className="text-6xl font-bold mb-4 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
+                <p className="text-2xl opacity-80 font-medium leading-relaxed max-w-3xl">
+                  {selectedTutorial.description}
+                </p>
+              </div>
 
-                  <div className="w-full max-w-md bg-white border-4 border-navy rounded-3xl p-6 shadow-[8px_8px_0px_0px_rgba(0,0,128,1)]">
-                    <h4 className="text-xl font-bold mb-4 uppercase">Reference Pose:</h4>
-                    <img 
-                      src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
-                      alt={selectedTutorial.title}
-                      className="w-full h-auto rounded-xl border-4 border-navy"
-                      referrerPolicy="no-referrer"
-                    />
+              <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[600px]">
+                {/* Left Column: Reference Pose */}
+                <div className="p-12 border-b-8 lg:border-b-0 lg:border-r-8 border-navy flex flex-col items-center justify-center bg-white">
+                  <div className="w-full h-full flex flex-col items-center">
+                    <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
+                      <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
+                      Reference Pose
+                    </h3>
+                    <div className="flex-grow flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)]">
+                      <img 
+                        src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
+                        alt={selectedTutorial.title}
+                        className="max-w-full max-h-[450px] object-contain rounded-xl"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="mt-8 w-full">
+                      <h4 className="text-xl font-bold uppercase mb-4">Pro Tips:</h4>
+                      <div className="flex flex-wrap gap-4">
+                        {['Basic circles', 'Line of action', 'Loose strokes'].map((tip, i) => (
+                          <div key={i} className="px-4 py-2 bg-sky-100 border-2 border-navy rounded-xl font-bold text-sm">
+                            {tip}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-8 lg:p-12 bg-sky-50/50">
-                  <div className="text-center mb-8">
-                    <h3 className="text-4xl font-bold uppercase tracking-tight">Your Canvas</h3>
-                    <p className="text-lg font-bold opacity-60">Practice the pose below and get AI feedback!</p>
-                  </div>
-                  
+                {/* Right Column: Sketch Canvas */}
+                <div className="p-12 bg-sky-50/50 flex flex-col items-center justify-center">
+                  <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
+                    <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
+                    Your Canvas
+                  </h3>
                   <SketchCanvas 
                     tutorialTitle={selectedTutorial.title} 
                     tutorialDescription={selectedTutorial.description} 
