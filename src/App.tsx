@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun } from 'lucide-react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import SketchCanvas from './components/SketchCanvas';
@@ -27,6 +27,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   useEffect(() => {
     fetchTutorials();
@@ -208,7 +209,10 @@ export default function App() {
               className="bg-white border-8 border-navy rounded-[4rem] w-[95vw] max-w-[1200px] max-h-[90vh] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
             >
               <button 
-                onClick={() => setSelectedTutorial(null)}
+                onClick={() => {
+                  setSelectedTutorial(null);
+                  setZoomLevel(1);
+                }}
                 className="absolute top-8 right-8 p-4 bg-navy text-white rounded-full hover:rotate-90 transition-transform z-50"
               >
                 <X size={40} strokeWidth={4} />
@@ -232,13 +236,40 @@ export default function App() {
                       <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                       Reference Pose
                     </h3>
-                    <div className="flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] mt-12">
-                      <img 
-                        src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
-                        alt={selectedTutorial.title}
-                        className="max-w-full max-h-[400px] object-contain rounded-xl"
-                        referrerPolicy="no-referrer"
-                      />
+                    <div className="flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] mt-12 relative overflow-hidden group">
+                      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => setZoomLevel(prev => Math.min(prev + 0.2, 3))}
+                          className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
+                          title="Zoom In"
+                        >
+                          <ZoomIn size={20} />
+                        </button>
+                        <button 
+                          onClick={() => setZoomLevel(prev => Math.max(prev - 0.2, 0.5))}
+                          className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
+                          title="Zoom Out"
+                        >
+                          <ZoomOut size={20} />
+                        </button>
+                        <button 
+                          onClick={() => setZoomLevel(1)}
+                          className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
+                          title="Reset Zoom"
+                        >
+                          <RotateCcw size={20} />
+                        </button>
+                      </div>
+                      <div className="w-full h-full flex items-center justify-center overflow-auto max-h-[400px]">
+                        <motion.img 
+                          animate={{ scale: zoomLevel }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                          src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
+                          alt={selectedTutorial.title}
+                          className="max-w-full max-h-full object-contain rounded-xl origin-center"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
