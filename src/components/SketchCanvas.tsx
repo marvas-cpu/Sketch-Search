@@ -16,7 +16,7 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
   const canvasRef = useRef<p5Types | null>(null);
 
   const setup = (p5: p5Types, canvasParentRef: Element) => {
-    p5.createCanvas(500, 500).parent(canvasParentRef);
+    p5.createCanvas(600, 600).parent(canvasParentRef);
     p5.background(255);
     canvasRef.current = p5;
   };

@@ -82,6 +82,9 @@ export default function App() {
         <div className="absolute top-10 left-1/2 -rotate-6"><Heart size={70} /></div>
         <div className="absolute top-3/4 right-10 rotate-12"><Cloud size={140} /></div>
         <div className="absolute top-5 right-5 rotate-12"><Sun size={100} /></div>
+        <div className="absolute bottom-1/2 right-10 -rotate-12 opacity-10"><User size={80} /></div>
+        <div className="absolute top-1/4 left-1/2 rotate-12 opacity-10"><User size={60} /></div>
+        <div className="absolute bottom-10 right-1/2 -rotate-45 opacity-10"><User size={110} /></div>
       </div>
 
       {/* Navigation */}
@@ -126,7 +129,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <main className="flex-grow flex flex-col items-center px-6 pt-16 pb-32 relative z-10">
+      <main className="flex-grow flex flex-col items-center px-6 pt-32 pb-32 relative z-10">
         {/* Hero Section */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
@@ -229,23 +232,13 @@ export default function App() {
                       <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                       Reference Pose
                     </h3>
-                    <div className="flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)]">
+                    <div className="flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] mt-12">
                       <img 
                         src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
                         alt={selectedTutorial.title}
                         className="max-w-full max-h-[400px] object-contain rounded-xl"
                         referrerPolicy="no-referrer"
                       />
-                    </div>
-                    <div className="mt-8 w-full">
-                      <h4 className="text-xl font-bold uppercase mb-4">Pro Tips:</h4>
-                      <div className="flex flex-wrap gap-4">
-                        {['Basic circles', 'Line of action', 'Loose strokes'].map((tip, i) => (
-                          <div key={i} className="px-4 py-2 bg-sky-100 border-2 border-navy rounded-xl font-bold text-sm">
-                            {tip}
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 </div>
