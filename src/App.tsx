@@ -236,8 +236,8 @@ export default function App() {
                       <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                       Reference Pose
                     </h3>
-                    <div className="flex items-center justify-center w-full bg-navy/5 rounded-[3rem] border-4 border-navy p-8 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] mt-12 relative overflow-hidden group">
-                      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-full h-[400px] overflow-auto border-4 border-navy rounded-[3rem] bg-navy/5 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] mt-12 relative group">
+                      <div className="absolute top-4 right-4 flex flex-col gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => setZoomLevel(prev => Math.min(prev + 0.2, 3))}
                           className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
@@ -260,15 +260,21 @@ export default function App() {
                           <RotateCcw size={20} />
                         </button>
                       </div>
-                      <div className="w-full h-full flex items-center justify-center overflow-auto max-h-[400px]">
-                        <motion.img 
-                          animate={{ scale: zoomLevel }}
+                      <div className="min-w-full min-h-full flex items-start justify-center p-8">
+                        <motion.div
+                          animate={{ 
+                            width: `${zoomLevel * 100}%`,
+                          }}
                           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                          src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
-                          alt={selectedTutorial.title}
-                          className="max-w-full max-h-full object-contain rounded-xl origin-center"
-                          referrerPolicy="no-referrer"
-                        />
+                          className="flex-shrink-0"
+                        >
+                          <img 
+                            src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
+                            alt={selectedTutorial.title}
+                            className="w-full h-auto object-contain rounded-xl"
+                            referrerPolicy="no-referrer"
+                          />
+                        </motion.div>
                       </div>
                     </div>
                   </div>
@@ -279,6 +285,7 @@ export default function App() {
                   <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
                     <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                     Your Canvas
+                    
                   </h3>
                   <div className="w-full flex justify-center">
                     <SketchCanvas 
