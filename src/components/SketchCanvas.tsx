@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Sketch from 'react-p5';
 import p5Types from 'p5';
-import { Pencil, Eraser, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Pencil, Eraser, Trash2, Sparkles, Loader2, Download } from 'lucide-react';
 import { getSketchFeedback } from '../lib/gemini';
 
 interface SketchCanvasProps {
@@ -41,6 +41,13 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
     }
   };
 
+  const handleDownload = () => {
+    if (canvasRef.current) {
+      const fileName = `${tutorialTitle.toLowerCase().replace(/\s+/g, '-')}-sketch.png`;
+      canvasRef.current.saveCanvas(fileName, 'png');
+    }
+  };
+
   const handleAiCheck = async () => {
     if (!canvasRef.current) return;
     
@@ -65,29 +72,45 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
 
   return (
     <div className="flex flex-col items-center gap-6 w-full">
-      <div className="flex gap-4 p-4 bg-white border-4 border-navy rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)]">
-        <button
-          onClick={() => setMode('pencil')}
-          className={`p-3 rounded-xl transition-all ${mode === 'pencil' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
-          title="Pencil"
-        >
-          <Pencil size={24} strokeWidth={3} />
-        </button>
-        <button
-          onClick={() => setMode('eraser')}
-          className={`p-3 rounded-xl transition-all ${mode === 'eraser' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
-          title="Eraser"
-        >
-          <Eraser size={24} strokeWidth={3} />
-        </button>
-        <div className="w-px bg-navy/20 mx-2" />
-        <button
-          onClick={clearCanvas}
-          className="p-3 rounded-xl hover:bg-red-100 text-red-600 transition-all"
-          title="Clear Canvas"
-        >
-          <Trash2 size={24} strokeWidth={3} />
-        </button>
+      <div className="flex flex-wrap justify-center gap-4 p-4 bg-white border-4 border-navy rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)]">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setMode('pencil')}
+            className={`p-3 rounded-xl transition-all ${mode === 'pencil' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
+            title="Pencil"
+          >
+            <Pencil size={24} strokeWidth={3} />
+          </button>
+          <button
+            onClick={() => setMode('eraser')}
+            className={`p-3 rounded-xl transition-all ${mode === 'eraser' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
+            title="Eraser"
+          >
+            <Eraser size={24} strokeWidth={3} />
+          </button>
+        </div>
+
+        <div className="w-px bg-navy/20 mx-2 hidden sm:block" />
+
+        <div className="flex gap-2">
+          <button
+            onClick={clearCanvas}
+            className="p-3 rounded-xl hover:bg-red-100 text-red-600 transition-all border-2 border-transparent hover:border-red-600"
+            title="Clear Canvas"
+          >
+            <Trash2 size={24} strokeWidth={3} />
+          </button>
+          <button
+            onClick={handleDownload}
+            className="p-3 rounded-xl hover:bg-sky-100 text-navy transition-all border-2 border-transparent hover:border-navy"
+            title="Download Sketch"
+          >
+            <Download size={24} strokeWidth={3} />
+          </button>
+        </div>
+
+        <div className="w-px bg-navy/20 mx-2 hidden sm:block" />
+
         <button
           onClick={handleAiCheck}
           disabled={isAnalyzing}
