@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import Sketch from 'react-p5';
 import p5Types from 'p5';
-import { Pencil, Eraser, Trash2, Sparkles, Loader2, Download, Frame } from 'lucide-react';
+import { Pencil, Eraser, Trash2, Sparkles, Loader2, Download, Frame, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { motion } from 'motion/react';
 import { getSketchFeedback } from '../lib/gemini';
 
 interface SketchCanvasProps {
@@ -13,6 +14,7 @@ interface SketchCanvasProps {
 const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDescription, imageUrl }) => {
   const [mode, setMode] = useState<'pencil' | 'eraser'>('pencil');
   const [isTracing, setIsTracing] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const canvasRef = useRef<p5Types | null>(null);
@@ -184,6 +186,32 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
 
         <div className="w-px bg-navy/20 mx-2 hidden sm:block" />
 
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setZoomLevel(prev => Math.min(prev + 0.2, 3))}
+            className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm text-navy"
+            title="Zoom In"
+          >
+            <ZoomIn size={24} strokeWidth={3} />
+          </button>
+          <button 
+            onClick={() => setZoomLevel(prev => Math.max(prev - 0.2, 0.5))}
+            className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm text-navy"
+            title="Zoom Out"
+          >
+            <ZoomOut size={24} strokeWidth={3} />
+          </button>
+          <button 
+            onClick={() => setZoomLevel(1)}
+            className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm text-navy"
+            title="Reset Zoom"
+          >
+            <RotateCcw size={24} strokeWidth={3} />
+          </button>
+        </div>
+
+        <div className="w-px bg-navy/20 mx-2 hidden sm:block" />
+
         <button
           onClick={handleAiCheck}
           disabled={isAnalyzing}
@@ -198,8 +226,19 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
         </button>
       </div>
 
-      <div className="relative border-8 border-navy rounded-[2rem] overflow-hidden bg-white shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] max-w-full [&>div>canvas]:max-w-full [&>div>canvas]:h-auto">
-        <Sketch preload={preload} setup={setup} draw={draw} />
+      <div className="relative border-8 border-navy rounded-[2rem] overflow-auto bg-white shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] w-full h-[600px] flex items-start justify-center group scrollbar-thin scrollbar-thumb-navy scrollbar-track-transparent">
+        <motion.div
+          animate={{ 
+            width: `${zoomLevel * 900}px`,
+            height: `${zoomLevel * 900}px`
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="flex-shrink-0 origin-top"
+        >
+          <div className="[&>div>canvas]:!w-full [&>div>canvas]:!h-full">
+            <Sketch preload={preload} setup={setup} draw={draw} />
+          </div>
+        </motion.div>
       </div>
 
       {feedback && (
