@@ -23,7 +23,6 @@ const SketchIcon = ({ children, label }: { children: React.ReactNode; label: str
 );
 
 export default function App() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
@@ -101,34 +100,10 @@ export default function App() {
           <span className="text-4xl font-bold tracking-tighter">SKETCH SEARCH</span>
         </div>
 
-        {/* Desktop Menu */}
-        <div className="hidden md:flex gap-8 text-xl font-bold items-center">
-          <a href="#" className="hover:scale-110 transition-transform hover:text-blue-600">TUTORIALS</a>
-          <a href="#" className="hover:scale-110 transition-transform hover:text-blue-600">MY SKETCHES</a>
-        </div>
-
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="md:hidden p-3 border-4 border-navy rounded-2xl bg-white shadow-[4px_4px_0px_0px_rgba(0,0,128,1)]"
-        >
-          {isMenuOpen ? <X size={32} strokeWidth={3} /> : <Menu size={32} strokeWidth={3} />}
-        </button>
+        {/* Desktop Menu - Removed as requested */}
       </nav>
 
-      {/* Mobile Menu Overlay */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 top-[104px] bg-white z-40 flex flex-col items-center justify-center gap-10 text-5xl font-bold md:hidden"
-          >
-            <a href="#" onClick={() => setIsMenuOpen(false)}>TUTORIALS</a>
-            <a href="#" onClick={() => setIsMenuOpen(false)}>MY SKETCHES</a>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Mobile Menu removed as links were requested to be removed */}
 
       <main className="flex-grow flex flex-col items-center px-6 pt-32 pb-32 relative z-10">
         {/* Hero Section */}
@@ -173,9 +148,6 @@ export default function App() {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-6 right-6 bg-sky-400 border-4 border-navy px-4 py-1 rounded-full font-bold text-lg rotate-12">
-                    {tutorial.difficulty || 'BEGINNER'}
-                  </div>
                 </div>
                 <div className="p-8">
                   <h3 className="text-3xl font-bold mb-2 uppercase tracking-tight">{tutorial.title}</h3>
@@ -291,6 +263,7 @@ export default function App() {
                     <SketchCanvas 
                       tutorialTitle={selectedTutorial.title} 
                       tutorialDescription={selectedTutorial.description} 
+                      imageUrl={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`}
                     />
                   </div>
                 </div>
