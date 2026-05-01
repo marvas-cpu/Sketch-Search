@@ -172,67 +172,62 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-navy/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] bg-sky-50 overflow-y-auto"
           >
-            <motion.div
-              initial={{ scale: 0.8, y: 50 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.8, y: 50 }}
-              className="bg-white border-8 border-navy rounded-[4rem] w-[95vw] max-w-[1200px] max-h-[90vh] overflow-y-auto relative shadow-[20px_20px_0px_0px_rgba(56,189,248,1)]"
-            >
+            <div className="min-h-screen p-6 md:p-12 relative">
               <button 
                 onClick={() => {
                   setSelectedTutorial(null);
                   setZoomLevel(1);
                 }}
-                className="absolute top-8 right-8 p-4 bg-navy text-white rounded-full hover:rotate-90 transition-transform z-50"
+                className="absolute top-8 right-8 p-4 bg-navy text-white rounded-full hover:rotate-90 transition-transform z-50 shadow-[5px_5px_0px_0px_rgba(56,189,248,1)]"
               >
                 <X size={40} strokeWidth={4} />
               </button>
 
-              <div className="p-12 border-b-8 border-navy bg-sky-50/30">
-                <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2">
-                  {selectedTutorial.category || 'POSE STUDY'}
+              <div className="max-w-[1600px] mx-auto">
+                <div className="mb-12">
+                  <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2">
+                    {selectedTutorial.category || 'POSE STUDY'}
+                  </div>
+                  <h2 className="text-6xl md:text-8xl font-bold mb-4 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
+                  <p className="text-2xl opacity-80 font-medium leading-relaxed max-w-4xl">
+                    {selectedTutorial.description}
+                  </p>
                 </div>
-                <h2 className="text-6xl font-bold mb-4 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
-                <p className="text-2xl opacity-80 font-medium leading-relaxed max-w-3xl">
-                  {selectedTutorial.description}
-                </p>
-              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2">
-                {/* Left Column: Reference Pose */}
-                <div className="p-8 lg:p-12 border-b-8 lg:border-b-0 lg:border-r-8 border-navy flex flex-col items-center justify-center bg-white">
-                  <div className="w-full flex flex-col items-center">
-                    <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+                  {/* Left Column: Reference Pose */}
+                  <div className="lg:col-span-4 space-y-8">
+                    <h3 className="text-3xl font-bold uppercase tracking-tight flex items-center gap-4">
                       <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
                       Reference Pose
                     </h3>
-                    <div className="w-full h-[400px] overflow-auto border-4 border-navy rounded-[3rem] bg-navy/5 shadow-[10px_10px_0px_0px_rgba(0,0,128,1)] mt-12 relative group">
-                      <div className="absolute top-4 right-4 flex flex-col gap-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-full h-[600px] overflow-auto border-8 border-navy rounded-[3rem] bg-navy/5 shadow-[15px_15px_0px_0px_rgba(0,0,128,1)] relative group">
+                      <div className="absolute top-6 right-6 flex flex-col gap-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => setZoomLevel(prev => Math.min(prev + 0.2, 3))}
-                          className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
+                          className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm"
                           title="Zoom In"
                         >
-                          <ZoomIn size={20} />
+                          <ZoomIn size={24} strokeWidth={3} />
                         </button>
                         <button 
                           onClick={() => setZoomLevel(prev => Math.max(prev - 0.2, 0.5))}
-                          className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
+                          className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm"
                           title="Zoom Out"
                         >
-                          <ZoomOut size={20} />
+                          <ZoomOut size={24} strokeWidth={3} />
                         </button>
                         <button 
                           onClick={() => setZoomLevel(1)}
-                          className="p-2 bg-white border-2 border-navy rounded-lg hover:bg-sky-100 transition-colors shadow-sm"
+                          className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm"
                           title="Reset Zoom"
                         >
-                          <RotateCcw size={20} />
+                          <RotateCcw size={24} strokeWidth={3} />
                         </button>
                       </div>
-                      <div className="min-w-full min-h-full flex items-start justify-center p-8">
+                      <div className="min-w-full min-h-full flex items-start justify-center p-12">
                         <motion.div
                           animate={{ 
                             width: `${zoomLevel * 100}%`,
@@ -241,34 +236,33 @@ export default function App() {
                           className="flex-shrink-0"
                         >
                           <img 
-                            src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`} 
+                            src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/1200/1200`} 
                             alt={selectedTutorial.title}
-                            className="w-full h-auto object-contain rounded-xl"
+                            className="w-full h-auto object-contain rounded-2xl"
                             referrerPolicy="no-referrer"
                           />
                         </motion.div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Right Column: Sketch Canvas */}
-                <div className="p-8 lg:p-12 bg-sky-50/50 flex flex-col items-center justify-center">
-                  <h3 className="text-3xl font-bold mb-8 uppercase tracking-tight self-start flex items-center gap-4">
-                    <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
-                    Your Canvas
-                    
-                  </h3>
-                  <div className="w-full flex justify-center">
-                    <SketchCanvas 
-                      tutorialTitle={selectedTutorial.title} 
-                      tutorialDescription={selectedTutorial.description} 
-                      imageUrl={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/800/800`}
-                    />
+                  {/* Right Column: Sketch Canvas */}
+                  <div className="lg:col-span-8 space-y-8">
+                    <h3 className="text-3xl font-bold uppercase tracking-tight flex items-center gap-4">
+                      <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
+                      Your Canvas
+                    </h3>
+                    <div className="w-full flex justify-center">
+                      <SketchCanvas 
+                        tutorialTitle={selectedTutorial.title} 
+                        tutorialDescription={selectedTutorial.description} 
+                        imageUrl={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/1200/1200`}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
