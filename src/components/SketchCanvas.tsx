@@ -38,7 +38,15 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
     // Draw reference image with opacity if tracing is enabled
     if (isTracing && imageRef.current) {
       p5.tint(255, 100); // 100/255 opacity
-      p5.image(imageRef.current, 0, 0, p5.width, p5.height);
+      
+      const img = imageRef.current;
+      const scale = Math.min(p5.width / img.width, p5.height / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (p5.width - w) / 2;
+      const y = (p5.height - h) / 2;
+      
+      p5.image(img, x, y, w, h);
       p5.noTint();
     }
 
