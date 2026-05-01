@@ -24,6 +24,7 @@ const SketchIcon = ({ children, label }: { children: React.ReactNode; label: str
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -34,22 +35,39 @@ export default function App() {
 
   const fetchTutorials = async () => {
     try {
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-        console.error('Supabase environment variables are missing!');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('tutorials')
+      setLoading(true);
+      setError(null);
+      // Try tutorials_data first
+      let { data, error: supabaseError } = await supabase
+        .from('tutorials_data')
         .select('*');
       
-      if (error) {
-        console.error('Error fetching tutorials:', error);
+      // If tutorials_data fails or is empty, try 'tutorials'
+      if (supabaseError || !data || data.length === 0) {
+        console.log('tutorials_data empty or error, trying tutorials table...');
+        const fallback = await supabase
+          .from('tutorials')
+          .select('*');
+        if (!fallback.error && fallback.data && fallback.data.length > 0) {
+          data = fallback.data;
+          supabaseError = null;
+        } else if (supabaseError || fallback.error) {
+          // If fallback also has an error, use the most relevant one
+          supabaseError = supabaseError || fallback.error;
+        }
+      }
+      
+      if (supabaseError) {
+        console.error('Error fetching tutorials:', supabaseError);
+        setError(supabaseError.message);
+        setTutorials([]);
       } else {
         setTutorials(data || []);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Unexpected error fetching tutorials:', err);
+      setError(err.message || 'An unexpected error occurred');
+      setTutorials([]);
     } finally {
       setLoading(false);
     }
@@ -123,10 +141,16 @@ export default function App() {
 
         {/* Tutorial Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl">
-          {(!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) ? (
+          {error ? (
             <div className="col-span-full text-center p-20 border-8 border-dashed border-red-600/20 rounded-[3rem] bg-red-50">
-              <p className="text-4xl font-bold text-red-600">SUPABASE NOT CONFIGURED! ⚠️</p>
-              <p className="text-xl font-bold mt-4 opacity-70">Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the AI Studio Secrets panel!</p>
+              <p className="text-4xl font-bold text-red-600">FETCH ERROR! ⚠️</p>
+              <p className="text-xl font-bold mt-4 opacity-70">{error}</p>
+              <button 
+                onClick={fetchTutorials}
+                className="mt-8 px-8 py-4 bg-red-600 text-white rounded-2xl font-bold hover:scale-105 transition-transform"
+              >
+                TRY AGAIN
+              </button>
             </div>
           ) : tutorials.length === 0 ? (
             <div className="col-span-full text-center p-20 border-8 border-dashed border-navy/20 rounded-[3rem]">

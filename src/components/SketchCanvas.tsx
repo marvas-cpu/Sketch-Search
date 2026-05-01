@@ -61,12 +61,11 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
     if (p5.mouseIsPressed && graphicsRef.current) {
       const g = graphicsRef.current;
       if (mode === 'pencil') {
+        (g as any).noErase();
         g.stroke(0);
         g.strokeWeight(4);
       } else {
-        // For eraser in composite mode, we can use erase() if p5 supports it or just draw white
-        // Snippet says stroke(255)
-        g.stroke(255);
+        (g as any).erase();
         g.strokeWeight(30);
       }
       g.line(p5.mouseX, p5.mouseY, p5.pmouseX, p5.pmouseY);
