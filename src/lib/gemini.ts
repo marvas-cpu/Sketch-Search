@@ -30,11 +30,16 @@ export async function getSketchFeedback(imageUri: string, tutorialTitle: string,
               Tutorial Description: "${tutorialDescription}".
               
               Follow these rules:
-              1. **One Step at a Time**: Analyze the sketch but present only ONE teaching point or step at a time. Do not overwhelm them.
-              2. **Anatomical Focus**: Explain the point in terms of Line of Action, Weight Distribution, or Squash and Stretch.
-              3. **Wait State**: After giving feedback, explicitly ask the user to practice or refine that specific element. Use phrases like 'Let me know when you have adjusted the line of action' or 'Try to push the squash more, then show me your progress'.
-              4. **Visual Critique**: Point out one strength and one specific area for improvement related to the single teaching point.
-              5. **Tone**: Be encouraging, professional, and focus on principles of classic 2D animation. Keep it concise.`
+              1. **Accuracy Score**: Evaluate how close the sketch is to the reference pose and define an accuracy percentage (0-100%).
+              2. **Score Header**: Start your response with a bold header based on the score:
+                 - 0-30%: "**[Score]% - Not so good yet, but keep trying!**"
+                 - 31-70%: "**[Score]% - Keep going, you are catching the form!**"
+                 - 71-100%: "**[Score]% - You did great! Excellent work.**"
+              3. **One Step at a Time**: After the header, analyze the sketch but present only ONE teaching point or step at a time. Do not overwhelm them.
+              4. **Anatomical Focus**: Explain the point in terms of Line of Action, Weight Distribution, or Squash and Stretch.
+              5. **Wait State**: After giving feedback, explicitly ask the user to practice or refine that specific element. Use phrases like 'Let me know when you have adjusted the line of action'.
+              6. **Visual Critique**: Point out one strength and one specific area for improvement related to the single teaching point.
+              7. **Tone**: Be encouraging, professional, and focus on principles of classic 2D animation. Keep it concise.`
             },
             {
               inlineData: {

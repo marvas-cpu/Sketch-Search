@@ -14,6 +14,8 @@ interface SketchCanvasProps {
 
 const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDescription, imageUrl, tutorialLevel }) => {
   const [mode, setMode] = useState<'pencil' | 'eraser'>('pencil');
+  const [pencilSize, setPencilSize] = useState(4);
+  const [eraserSize, setEraserSize] = useState(30);
   const [isTracing, setIsTracing] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -64,10 +66,10 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
       if (mode === 'pencil') {
         (g as any).noErase();
         g.stroke(0);
-        g.strokeWeight(4);
+        g.strokeWeight(pencilSize);
       } else {
         (g as any).erase();
-        g.strokeWeight(30);
+        g.strokeWeight(eraserSize);
       }
       g.line(p5.mouseX, p5.mouseY, p5.pmouseX, p5.pmouseY);
     }
@@ -143,21 +145,45 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
       {/* Top Section: Canvas Controls and Drawing */}
       <div className="flex flex-col items-center gap-6 w-full">
         <div className="flex flex-wrap justify-center gap-4 p-4 bg-white border-4 border-navy rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] w-fit">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setMode('pencil')}
-              className={`p-3 rounded-xl transition-all ${mode === 'pencil' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
-              title="Pencil"
-            >
-              <Pencil size={24} strokeWidth={3} />
-            </button>
-            <button
-              onClick={() => setMode('eraser')}
-              className={`p-3 rounded-xl transition-all ${mode === 'eraser' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
-              title="Eraser"
-            >
-              <Eraser size={24} strokeWidth={3} />
-            </button>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => setMode('pencil')}
+                className={`p-3 rounded-xl transition-all ${mode === 'pencil' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
+                title="Pencil"
+              >
+                <Pencil size={24} strokeWidth={3} />
+              </button>
+              {mode === 'pencil' && (
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  value={pencilSize} 
+                  onChange={(e) => setPencilSize(parseInt(e.target.value))}
+                  className="w-full h-1 bg-navy/20 rounded-lg appearance-none cursor-pointer accent-navy"
+                />
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => setMode('eraser')}
+                className={`p-3 rounded-xl transition-all ${mode === 'eraser' ? 'bg-sky-400 text-navy border-2 border-navy' : 'hover:bg-sky-100'}`}
+                title="Eraser"
+              >
+                <Eraser size={24} strokeWidth={3} />
+              </button>
+              {mode === 'eraser' && (
+                <input 
+                  type="range" 
+                  min="5" 
+                  max="100" 
+                  value={eraserSize} 
+                  onChange={(e) => setEraserSize(parseInt(e.target.value))}
+                  className="w-full h-1 bg-navy/20 rounded-lg appearance-none cursor-pointer accent-navy"
+                />
+              )}
+            </div>
           </div>
 
           <div className="w-px bg-navy/20 mx-2 hidden sm:block" />
