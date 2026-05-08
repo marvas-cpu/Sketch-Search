@@ -139,9 +139,9 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
   };
 
   return (
-    <div className="flex flex-col xl:flex-row items-start gap-12 w-full max-w-full">
-      {/* Left Column: Canvas Controls and Drawing */}
-      <div className="flex flex-col items-center gap-6 flex-grow w-full xl:w-auto">
+    <div className="flex flex-col items-center gap-12 w-full max-w-7xl mx-auto">
+      {/* Top Section: Canvas Controls and Drawing */}
+      <div className="flex flex-col items-center gap-6 w-full">
         <div className="flex flex-wrap justify-center gap-4 p-4 bg-white border-4 border-navy rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] w-fit">
           <div className="flex gap-2">
             <button
@@ -229,8 +229,8 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
         </div>
       </div>
 
-      {/* Right Column: Instructor Agent */}
-      <div className="w-full xl:w-[400px] flex flex-col gap-6 shrink-0">
+      {/* Bottom Section: Instructor Agent */}
+      <div className="w-full max-w-4xl flex flex-col gap-6">
         <div className="bg-white border-8 border-navy rounded-[3rem] p-8 shadow-[10px_10px_0px_0px_rgba(56,189,248,1)] relative overflow-visible">
           {/* Instructor Character Avatar */}
           <div className="absolute -top-12 -left-6 w-24 h-24 bg-sky-400 border-8 border-navy rounded-3xl flex items-center justify-center rotate-[-12deg] shadow-lg animate-bounce">
