@@ -24,6 +24,7 @@ const SketchIcon = ({ children, label }: { children: React.ReactNode; label: str
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
@@ -81,6 +82,63 @@ export default function App() {
     );
   }
 
+  if (!selectedLevel) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-sky-50 p-6 relative overflow-hidden">
+        {/* Decorative background for the question screen */}
+        <div className="absolute inset-0 pointer-events-none opacity-10">
+          <div className="absolute top-10 left-10"><Pencil size={120} className="rotate-12" /></div>
+          <div className="absolute bottom-10 right-10"><ImageIcon size={150} className="-rotate-12" /></div>
+        </div>
+
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white border-8 border-navy p-12 md:p-20 rounded-[3rem] shadow-[20px_20px_0px_0px_rgba(0,0,128,1)] text-center relative z-10 max-w-4xl w-full"
+        >
+          <div className="w-24 h-24 bg-sky-400 border-8 border-navy rounded-3xl flex items-center justify-center mx-auto mb-10 -rotate-6 shadow-xl">
+            <User size={48} className="text-navy" strokeWidth={3} />
+          </div>
+          
+          <h2 className="text-5xl md:text-7xl font-black text-navy mb-4 tracking-tighter uppercase leading-none">
+            Welcome Artist!
+          </h2>
+          <p className="text-2xl md:text-3xl font-bold text-navy/60 mb-12 italic">
+            "What level would you like to be?"
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { id: 'Beginner', color: 'bg-green-400', desc: 'Starting my journey' },
+              { id: 'Average', color: 'bg-sky-400', desc: 'Feeling confident' },
+              { id: 'Pro', color: 'bg-orange-400', desc: 'Ready for a challenge' }
+            ].map((level) => (
+              <motion.button
+                key={level.id}
+                whileHover={{ scale: 1.05, rotate: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setSelectedLevel(level.id)}
+                className="group flex flex-col items-center p-8 bg-white border-4 border-navy rounded-[2.5rem] hover:bg-sky-50 transition-colors shadow-[8px_8px_0px_0px_rgba(0,0,128,1)]"
+              >
+                <div className={`w-16 h-16 ${level.color} border-4 border-navy rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform`}>
+                  <Star size={32} fill="navy" className="text-navy" />
+                </div>
+                <span className="text-3xl font-black text-navy mb-2 uppercase">{level.id}</span>
+                <span className="text-sm font-bold opacity-40 uppercase tracking-widest">{level.desc}</span>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const filteredTutorials = tutorials.filter(t => {
+    const tutorialLevel = t.level || t.difficulty;
+    if (!tutorialLevel) return false; // Hide tutorials with no level if a level is selected
+    return tutorialLevel.toLowerCase() === selectedLevel?.toLowerCase();
+  });
+
   return (
     <div className="min-h-screen flex flex-col selection:bg-navy selection:text-white overflow-x-hidden">
       {/* Background Doodles (Cartoon Fun) */}
@@ -118,7 +176,26 @@ export default function App() {
           <span className="text-4xl font-bold tracking-tighter">SKETCH SEARCH</span>
         </div>
 
-        {/* Desktop Menu - Removed as requested */}
+        {selectedLevel && (
+          <div className="flex items-center gap-4">
+            <span className="hidden md:block font-black text-navy opacity-40 uppercase tracking-widest text-xs">Level</span>
+            <div className="flex gap-2 bg-navy/5 p-2 rounded-2xl border-4 border-navy/10">
+              {['Beginner', 'Average', 'Pro'].map((level) => (
+                <button
+                  key={level}
+                  onClick={() => setSelectedLevel(level)}
+                  className={`px-4 py-1.5 rounded-xl font-bold transition-all ${
+                    selectedLevel === level 
+                      ? 'bg-navy text-white shadow-lg' 
+                      : 'hover:bg-navy/10 text-navy/60'
+                  }`}
+                >
+                  {level.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Mobile Menu removed as links were requested to be removed */}
@@ -152,12 +229,12 @@ export default function App() {
                 TRY AGAIN
               </button>
             </div>
-          ) : tutorials.length === 0 ? (
+          ) : filteredTutorials.length === 0 ? (
             <div className="col-span-full text-center p-20 border-8 border-dashed border-navy/20 rounded-[3rem]">
-              <p className="text-4xl font-bold opacity-30">NO TUTORIALS YET! <br /> ADD THEM IN SUPABASE!</p>
+              <p className="text-4xl font-bold opacity-30">NO {selectedLevel.toUpperCase()} TUTORIALS YET! <br /> ADD THEM IN SUPABASE!</p>
             </div>
           ) : (
-            tutorials.map((tutorial) => (
+            filteredTutorials.map((tutorial) => (
               <motion.button
                 key={tutorial.id}
                 whileHover={{ scale: 1.05, rotate: -1 }}
@@ -174,6 +251,15 @@ export default function App() {
                   />
                 </div>
                 <div className="p-8">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 border-navy ${
+                      (tutorial.level || tutorial.difficulty)?.toLowerCase() === 'beginner' ? 'bg-green-400' :
+                      (tutorial.level || tutorial.difficulty)?.toLowerCase() === 'average' ? 'bg-sky-400' :
+                      'bg-orange-400'
+                    }`}>
+                      {tutorial.level || tutorial.difficulty}
+                    </span>
+                  </div>
                   <h3 className="text-3xl font-bold mb-2 uppercase tracking-tight">{tutorial.title}</h3>
                   <p className="text-xl opacity-70 line-clamp-2 font-medium">{tutorial.description}</p>
                   <div className="mt-6 flex items-center gap-2 text-navy font-bold text-xl">
@@ -281,6 +367,7 @@ export default function App() {
                         tutorialTitle={selectedTutorial.title} 
                         tutorialDescription={selectedTutorial.description} 
                         imageUrl={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/1200/1200`}
+                        tutorialLevel={selectedTutorial.level || selectedTutorial.difficulty}
                       />
                     </div>
                   </div>
