@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, ZoomIn, ZoomOut, RotateCcw, Camera, Sparkles, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import SketchCanvas from './components/SketchCanvas';
+import AnatomyDoll from './components/AnatomyDoll';
 
 const SketchIcon = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <motion.div
@@ -29,6 +30,7 @@ export default function App() {
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isCapturingPose, setIsCapturingPose] = useState(false);
 
   useEffect(() => {
     fetchTutorials();
@@ -107,11 +109,12 @@ export default function App() {
             "What level would you like to be?"
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { id: 'Beginner', color: 'bg-green-400', desc: 'Starting my journey' },
-              { id: 'Average', color: 'bg-sky-400', desc: 'Feeling confident' },
-              { id: 'Pro', color: 'bg-orange-400', desc: 'Ready for a challenge' }
+              { id: 'Beginner', color: 'bg-green-400', desc: 'Starting my journey', icon: Star },
+              { id: 'Average', color: 'bg-sky-400', desc: 'Feeling confident', icon: Star },
+              { id: 'Pro', color: 'bg-orange-400', desc: 'Ready for a challenge', icon: Star },
+              { id: '3D Doll', color: 'bg-indigo-400', desc: 'Pose a mannequin', icon: Box }
             ].map((level) => (
               <motion.button
                 key={level.id}
@@ -121,10 +124,10 @@ export default function App() {
                 className="group flex flex-col items-center p-8 bg-white border-4 border-navy rounded-[2.5rem] hover:bg-sky-50 transition-colors shadow-[8px_8px_0px_0px_rgba(0,0,128,1)]"
               >
                 <div className={`w-16 h-16 ${level.color} border-4 border-navy rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform`}>
-                  <Star size={32} fill="navy" className="text-navy" />
+                  <level.icon size={32} fill="navy" className="text-navy" />
                 </div>
                 <span className="text-3xl font-black text-navy mb-2 uppercase">{level.id}</span>
-                <span className="text-sm font-bold opacity-40 uppercase tracking-widest">{level.desc}</span>
+                <span className="text-sm font-bold opacity-40 uppercase tracking-widest text-center">{level.desc}</span>
               </motion.button>
             ))}
           </div>
@@ -179,12 +182,12 @@ export default function App() {
         {selectedLevel && (
           <div className="flex items-center gap-4">
             <span className="hidden md:block font-black text-navy opacity-40 uppercase tracking-widest text-xs">Level</span>
-            <div className="flex gap-2 bg-navy/5 p-2 rounded-2xl border-4 border-navy/10">
-              {['Beginner', 'Average', 'Pro'].map((level) => (
+            <div className="flex gap-2 bg-navy/5 p-2 rounded-2xl border-4 border-navy/10 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+              {['Beginner', 'Average', 'Pro', '3D Doll'].map((level) => (
                 <button
                   key={level}
                   onClick={() => setSelectedLevel(level)}
-                  className={`px-4 py-1.5 rounded-xl font-bold transition-all ${
+                  className={`px-4 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
                     selectedLevel === level 
                       ? 'bg-navy text-white shadow-lg' 
                       : 'hover:bg-navy/10 text-navy/60'
@@ -217,8 +220,50 @@ export default function App() {
         </motion.div>
 
         {/* Tutorial Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl">
-          {error ? (
+        {selectedLevel === '3D Doll' ? (
+          <div className="w-full max-w-4xl">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white border-8 border-navy p-12 md:p-20 rounded-[3rem] shadow-[20px_20px_0px_0px_rgba(79,70,229,1)] text-center"
+            >
+              <div className="w-24 h-24 bg-indigo-400 border-8 border-navy rounded-3xl flex items-center justify-center mx-auto mb-10 rotate-3 shadow-xl">
+                <Box size={48} className="text-navy" strokeWidth={3} />
+              </div>
+              <h2 className="text-5xl md:text-6xl font-black text-navy mb-6 tracking-tighter uppercase leading-none">
+                3D ANATOMY DOLL
+              </h2>
+              <p className="text-xl md:text-2xl font-bold text-navy/70 mb-12 max-w-2xl mx-auto">
+                Pose the mannequin however you like! Create your own target for a sketch study.
+              </p>
+              <button 
+                onClick={() => setIsCapturingPose(true)}
+                className="group flex items-center gap-4 px-12 py-6 bg-navy text-white rounded-[2.5rem] font-black uppercase tracking-widest text-2xl shadow-[10px_10px_0px_0px_rgba(56,189,248,1)] hover:shadow-none hover:translate-x-2 hover:translate-y-2 transition-all mx-auto"
+              >
+                <Sparkles size={32} className="group-hover:rotate-12 transition-transform" />
+                Open 3D Studio
+              </button>
+            </motion.div>
+
+            {isCapturingPose && (
+              <AnatomyDoll 
+                onCapture={(imageUrl) => {
+                  setIsCapturingPose(false);
+                  setSelectedTutorial({
+                    id: 'custom-pose',
+                    title: 'Your 3D Pose',
+                    description: 'A pose manually created using the 3D Anatomy Doll. Can you replicate it?',
+                    image_url: imageUrl,
+                    level: '3D Doll'
+                  });
+                }}
+                onClose={() => setIsCapturingPose(false)}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl">
+            {error ? (
             <div className="col-span-full text-center p-20 border-8 border-dashed border-red-600/20 rounded-[3rem] bg-red-50">
               <p className="text-4xl font-bold text-red-600">FETCH ERROR! ⚠️</p>
               <p className="text-xl font-bold mt-4 opacity-70">{error}</p>
@@ -273,7 +318,8 @@ export default function App() {
             ))
           )}
         </div>
-      </main>
+      )}
+    </main>
 
       {/* Tutorial Modal */}
       <AnimatePresence>
