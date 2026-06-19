@@ -1,349 +1,11 @@
 import React, { useRef, useState, useMemo, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Grid, PivotControls, Environment } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Grid, Environment, TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'motion/react';
-import { X, Check, RotateCcw, Box, HelpCircle, Move, Search, Database, AlertCircle, Link2 } from 'lucide-react';
+import { X, Check, RotateCcw, Box, HelpCircle, Move, Database, AlertCircle, Link2, Sliders, RefreshCw } from 'lucide-react';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-
-interface BoneProps {
-  position: [number, number, number];
-  rotation: [number, number, number];
-  scale: [number, number, number];
-  color?: string;
-  name: string;
-  onSelect: (name: string) => void;
-  isSelected: boolean;
-  children?: React.ReactNode;
-  onRotationChange?: (rotation: [number, number, number]) => void;
-}
-
-const BodyPart: React.FC<BoneProps & { 
-  type?: 'pelvis' | 'torso' | 'head' | 'upper_arm' | 'lower_arm' | 'thigh' | 'calf';
-}> = ({ 
-  position, 
-  rotation, 
-  scale, 
-  color = "#dfc8a5", // Beautiful warm light birch wood tone
-  name, 
-  onSelect, 
-  isSelected, 
-  children, 
-  onRotationChange,
-  type
-}) => {
-  const [hovered, setHovered] = useState(false);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const jointColor = "#a38c73"; // Walnut joint connectors
-  
-  // Render highly stylized anatomical drawing mannequin parts
-  const renderGeometry = () => {
-    switch (type) {
-      case 'head':
-        return (
-          <group>
-            {/* Neck pillar joint */}
-            <mesh position={[0, -0.22, 0]}>
-              <cylinderGeometry args={[0.07, 0.08, 0.14, 16]} />
-              <meshStandardMaterial color={jointColor} roughness={0.5} />
-            </mesh>
-            {/* Smooth mannequin head egg shape */}
-            <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[0.18, 32, 16]} />
-              <meshStandardMaterial color={color} roughness={0.3} metalness={0.05} />
-            </mesh>
-            {/* Center alignment ridge to help drawing orientation */}
-            <mesh position={[0, 0.02, 0.17]}>
-              <boxGeometry args={[0.015, 0.11, 0.025]} />
-              <meshStandardMaterial color={jointColor} roughness={0.5} />
-            </mesh>
-          </group>
-        );
-      case 'torso':
-        return (
-          <group>
-            {/* Chest barrel */}
-            <mesh position={[0, 0.12, 0]} scale={[1, 1.1, 0.9]}>
-              <cylinderGeometry args={[0.26, 0.18, 0.45, 16]} />
-              <meshStandardMaterial color={color} roughness={0.3} metalness={0.05} />
-            </mesh>
-            {/* Shoulder alignment nodes */}
-            <mesh position={[0, 0.28, 0]}>
-              <boxGeometry args={[0.54, 0.05, 0.14]} />
-              <meshStandardMaterial color={jointColor} roughness={0.4} />
-            </mesh>
-          </group>
-        );
-      case 'pelvis':
-        return (
-          <group>
-            {/* Main hip core */}
-            <mesh scale={[1.1, 0.8, 1.15]}>
-              <sphereGeometry args={[0.18, 16, 16]} />
-              <meshStandardMaterial color={color} roughness={0.3} metalness={0.05} />
-            </mesh>
-          </group>
-        );
-      case 'upper_arm':
-      case 'lower_arm':
-        return (
-          <group>
-            {/* Ball joint at origin */}
-            <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[0.07, 16, 16]} />
-              <meshStandardMaterial color={jointColor} roughness={0.5} />
-            </mesh>
-            {/* Wooden cylindrical bone representation */}
-            <mesh position={[0, -scale[1] / 2, 0]}>
-              <cylinderGeometry args={[scale[0] * 0.4, scale[0] * 0.3, scale[1] * 0.9, 16]} />
-              <meshStandardMaterial color={color} roughness={0.3} metalness={0.05} />
-            </mesh>
-          </group>
-        );
-      case 'thigh':
-      case 'calf':
-        return (
-          <group>
-            {/* Robust ball joint at origin */}
-            <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[0.085, 16, 16]} />
-              <meshStandardMaterial color={jointColor} roughness={0.5} />
-            </mesh>
-            {/* Tapered leg cylinder bone */}
-            <mesh position={[0, -scale[1] / 2, 0]}>
-              <cylinderGeometry args={[scale[0] * 0.42, scale[0] * 0.32, scale[1] * 0.9, 16]} />
-              <meshStandardMaterial color={color} roughness={0.3} metalness={0.05} />
-            </mesh>
-          </group>
-        );
-      default:
-        return (
-          <group>
-            <mesh>
-              <boxGeometry args={scale} />
-              <meshStandardMaterial color={color} roughness={0.3} />
-            </mesh>
-          </group>
-        );
-    }
-  };
-
-  return (
-    <group position={position}>
-      {isSelected ? (
-        <PivotControls
-          activeAxes={[true, true, true]}
-          depthTest={false}
-          anchor={[0, 0, 0]}
-          scale={0.55}
-          onDrag={(matrix) => {
-            const rot = new THREE.Euler().setFromRotationMatrix(matrix);
-            onRotationChange?.([rot.x, rot.y, rot.z]);
-          }}
-          disableAxes={true}
-          disableSliders={true}
-        >
-          <group rotation={rotation}>
-            <mesh 
-              ref={meshRef}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(name);
-              }}
-              onPointerOver={() => setHovered(true)}
-              onPointerOut={() => setHovered(false)}
-            >
-              {renderGeometry()}
-            </mesh>
-            {/* Sky blue selection highlight ring */}
-            <mesh scale={[1.2, 1.2, 1.2]}>
-              <sphereGeometry args={[0.075, 16, 16]} />
-              <meshBasicMaterial color="#38bdf8" wireframe transparent opacity={0.35} />
-            </mesh>
-            <group>
-              {children}
-            </group>
-          </group>
-        </PivotControls>
-      ) : (
-        <group rotation={rotation}>
-          <mesh 
-            ref={meshRef}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(name);
-            }}
-            onPointerOver={() => setHovered(true)}
-            onPointerOut={() => setHovered(false)}
-          >
-            {renderGeometry()}
-            {hovered && (
-              <mesh scale={[1.12, 1.12, 1.12]}>
-                <sphereGeometry args={[0.08, 16, 16]} />
-                <meshBasicMaterial color="#bae6fd" wireframe transparent opacity={0.25} />
-              </mesh>
-            )}
-          </mesh>
-          {children}
-        </group>
-      )}
-    </group>
-  );
-};
-
-const Mannequin: React.FC<{ 
-  selectedPart: string; 
-  bodyState: any; 
-  onSelect: (name: string) => void; 
-  onRotate: (name: string, rot: [number, number, number]) => void;
-}> = ({ selectedPart, bodyState, onSelect, onRotate }) => {
-  return (
-    <group position={[0, -0.6, 0]}>
-      {/* Pelvis/Root */}
-      <BodyPart 
-        name="pelvis" 
-        position={[0, 1.3, 0]} 
-        rotation={bodyState.pelvis.rotation} 
-        scale={[0.5, 0.35, 0.3]} 
-        onSelect={onSelect} 
-        isSelected={selectedPart === 'pelvis'}
-        onRotationChange={(rot) => onRotate('pelvis', rot)}
-        type="pelvis"
-      >
-        {/* Torso */}
-        <BodyPart 
-          name="torso" 
-          position={[0, 0.42, 0]} 
-          rotation={bodyState.torso.rotation} 
-          scale={[0.6, 0.72, 0.35]} 
-          onSelect={onSelect} 
-          isSelected={selectedPart === 'torso'}
-          onRotationChange={(rot) => onRotate('torso', rot)}
-          type="torso"
-        >
-          {/* Head */}
-          <BodyPart 
-            name="head" 
-            position={[0, 0.65, 0]} 
-            rotation={bodyState.head.rotation} 
-            scale={[0.35, 0.45, 0.35]} 
-            onSelect={onSelect} 
-            isSelected={selectedPart === 'head'}
-            onRotationChange={(rot) => onRotate('head', rot)}
-            type="head"
-          />
-          
-          {/* Left Arm */}
-          <BodyPart 
-            name="l_shoulder" 
-            position={[-0.45, 0.25, 0]} 
-            rotation={bodyState.l_shoulder.rotation} 
-            scale={[0.25, 0.5, 0.2]} 
-            onSelect={onSelect} 
-            isSelected={selectedPart === 'l_shoulder'}
-            onRotationChange={(rot) => onRotate('l_shoulder', rot)}
-            type="upper_arm"
-          >
-             <BodyPart 
-                name="l_elbow" 
-                position={[0, -0.45, 0]} 
-                rotation={bodyState.l_elbow.rotation} 
-                scale={[0.2, 0.45, 0.18]} 
-                onSelect={onSelect} 
-                isSelected={selectedPart === 'l_elbow'}
-                onRotationChange={(rot) => onRotate('l_elbow', rot)}
-                type="lower_arm"
-              />
-          </BodyPart>
-
-          {/* Right Arm */}
-          <BodyPart 
-            name="r_shoulder" 
-            position={[0.45, 0.25, 0]} 
-            rotation={bodyState.r_shoulder.rotation} 
-            scale={[0.25, 0.5, 0.2]} 
-            onSelect={onSelect} 
-            isSelected={selectedPart === 'r_shoulder'}
-            onRotationChange={(rot) => onRotate('r_shoulder', rot)}
-            type="upper_arm"
-          >
-             <BodyPart 
-                name="r_elbow" 
-                position={[0, -0.45, 0]} 
-                rotation={bodyState.r_elbow.rotation} 
-                scale={[0.2, 0.45, 0.18]} 
-                onSelect={onSelect} 
-                isSelected={selectedPart === 'r_elbow'}
-                onRotationChange={(rot) => onRotate('r_elbow', rot)}
-                type="lower_arm"
-              />
-          </BodyPart>
-        </BodyPart>
-
-        {/* Left Leg */}
-        <BodyPart 
-          name="l_hip" 
-          position={[-0.18, -0.4, 0]} 
-          rotation={bodyState.l_hip.rotation} 
-          scale={[0.25, 0.65, 0.25]} 
-          onSelect={onSelect} 
-          isSelected={selectedPart === 'l_hip'}
-          onRotationChange={(rot) => onRotate('l_hip', rot)}
-          type="thigh"
-        >
-          <BodyPart 
-            name="l_knee" 
-            position={[0, -0.6, 0]} 
-            rotation={bodyState.l_knee.rotation} 
-            scale={[0.22, 0.65, 0.22]} 
-            onSelect={onSelect} 
-            isSelected={selectedPart === 'l_knee'}
-            onRotationChange={(rot) => onRotate('l_knee', rot)}
-            type="calf"
-          />
-        </BodyPart>
-
-        {/* Right Leg */}
-        <BodyPart 
-          name="r_hip" 
-          position={[0.18, -0.4, 0]} 
-          rotation={bodyState.r_hip.rotation} 
-          scale={[0.25, 0.65, 0.25]} 
-          onSelect={onSelect} 
-          isSelected={selectedPart === 'r_hip'}
-          onRotationChange={(rot) => onRotate('r_hip', rot)}
-          type="thigh"
-        >
-          <BodyPart 
-            name="r_knee" 
-            position={[0, -0.6, 0]} 
-            rotation={bodyState.r_knee.rotation} 
-            scale={[0.22, 0.65, 0.22]} 
-            onSelect={onSelect} 
-            isSelected={selectedPart === 'r_knee'}
-            onRotationChange={(rot) => onRotate('r_knee', rot)}
-            type="calf"
-          />
-        </BodyPart>
-      </BodyPart>
-    </group>
-  );
-};
-
-const DEFAULT_BODY_STATE = {
-  pelvis: { rotation: [0, 0, 0] as [number, number, number] },
-  torso: { rotation: [0, 0, 0] as [number, number, number] },
-  head: { rotation: [0, 0, 0] as [number, number, number] },
-  l_shoulder: { rotation: [0, 0, 0] as [number, number, number] },
-  l_elbow: { rotation: [0, 0, 0] as [number, number, number] },
-  r_shoulder: { rotation: [0, 0, 0] as [number, number, number] },
-  r_elbow: { rotation: [0, 0, 0] as [number, number, number] },
-  l_hip: { rotation: [0, 0, 0] as [number, number, number] },
-  l_knee: { rotation: [0, 0, 0] as [number, number, number] },
-  r_hip: { rotation: [0, 0, 0] as [number, number, number] },
-  r_knee: { rotation: [0, 0, 0] as [number, number, number] },
-};
 
 interface AnatomyDollProps {
   onCapture: (imageUrl: string) => void;
@@ -354,19 +16,26 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Model state configurations
-  const [modelType, setModelType] = useState<'procedural' | 'supabase'>('procedural');
-  const [selectedPart, setSelectedPart] = useState<string>('pelvis');
-  const [bodyState, setBodyState] = useState(DEFAULT_BODY_STATE);
-  
-  // Supabase/Custom loading variables
+  const [selectedPart, setSelectedPart] = useState<string>('');
   const [gltfModel, setGltfModel] = useState<any>(null);
   const [gltfRotations, setGltfRotations] = useState<Record<string, [number, number, number]>>({});
+  const [gltfTranslations, setGltfTranslations] = useState<Record<string, [number, number, number]>>({});
+  
+  // Initial baseline fallback state to restore transforms
+  const [originalRotations, setOriginalRotations] = useState<Record<string, [number, number, number]>>({});
+  const [originalPositions, setOriginalPositions] = useState<Record<string, [number, number, number]>>({});
+
+  // Interaction options
+  const [transformMode, setTransformMode] = useState<'rotate' | 'translate'>('rotate');
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Supabase / Custom model loading state
   const [supabaseLoading, setSupabaseLoading] = useState(false);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
   const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character2.obj');
 
-  // Attempt to load standard Supabase models on mount
+  // Attempt to load standard Supabase model on mount
   useEffect(() => {
     autoDetectAndLoadSupabase();
   }, []);
@@ -411,10 +80,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     }
 
-    // If auto-detection fails, set descriptive message informing why fallback is active
     setSupabaseLoading(false);
-    setSupabaseError("Supabase Model asset is missing. To load yours, update 'poses/anatomy_doll.glb' on Supabase, or paste a URL below.");
-    setModelType('procedural');
+    setSupabaseError("Supabase Model asset is missing. Please ensure your storage bucket has public access or paste your model URL path below.");
   };
 
   const handleManualLoad = async (urlToLoad: string) => {
@@ -436,16 +103,18 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   };
 
   const applyLoadedObjModel = (objGroup: any, url: string) => {
-    // Traverse meshes and enrich visual styles for beautiful rendering
+    // Auto-name meshes at the start to ensure they are targetable and selectable
+    let meshIdx = 1;
     objGroup.traverse((node: any) => {
       if (node.isMesh) {
+        node.name = node.name || `Body_Part_${meshIdx++}`;
         node.castShadow = true;
         node.receiveShadow = true;
         
-        // Give the OBJ mesh parts standard matte color if material is fresh/undefined or basic white
+        // Warm timber drawing model color theme matching guidelines
         if (!node.material || (Array.isArray(node.material) && node.material.length === 0)) {
           node.material = new THREE.MeshStandardMaterial({
-            color: "#dfc8a5", // Rich timber timber representation
+            color: "#dfc8a5",
             roughness: 0.35,
             metalness: 0.05,
             side: THREE.DoubleSide
@@ -455,156 +124,135 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
           mats.forEach((mat: any) => {
             mat.side = THREE.DoubleSide;
             if (mat.color && (mat.color.getHex() === 0xffffff || mat.color.getHex() === 0xcccccc)) {
-              mat.color.set("#dfc8a5"); // Warm aesthetic timber tone instead of plain grey/white
+              mat.color.set("#dfc8a5");
             }
           });
         }
       }
     });
 
-    // Find children in the model to use as pose segments/bones
+    // Gather parts
     const parts: string[] = [];
     objGroup.traverse((node: any) => {
       if (node.name && (node.isMesh || node.isGroup || node.isBone) && node !== objGroup) {
-        parts.push(node.name);
+        if (!parts.includes(node.name)) {
+          parts.push(node.name);
+        }
       }
     });
 
-    if (parts.length === 0) {
-      // Auto-segment parts if they don't have explicit names so that we can select & manipulate segments!
-      let meshIdx = 1;
-      objGroup.traverse((node: any) => {
-        if (node.isMesh) {
-          node.name = node.name || `Body Part ${meshIdx++}`;
-          parts.push(node.name);
-        }
-      });
-    }
-
     const initialRotations: Record<string, [number, number, number]> = {};
+    const initialPositions: Record<string, [number, number, number]> = {};
     parts.forEach(p => {
       const obj = objGroup.getObjectByName(p);
       if (obj) {
         initialRotations[p] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+        initialPositions[p] = [obj.position.x, obj.position.y, obj.position.z];
       }
     });
 
-    // Automatically align scale and position using a bounding box
+    // Center and scale model using bounding box calculations
     const box = new THREE.Box3().setFromObject(objGroup);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     
-    // Position model above grid and center it
     objGroup.position.x += (-center.x);
     objGroup.position.y += (-center.y) + size.y / 2 + 0.1; 
     objGroup.position.z += (-center.z);
 
     const maxDim = Math.max(size.x, size.y, size.z);
     if (maxDim > 0) {
-      const scaleFactor = 2.2 / maxDim;
+      const scaleFactor = 2.4 / maxDim;
       objGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
 
-    // Embed under virtual gltf wrapper object so it integrates with existing canvas mechanics
     setGltfModel({ scene: objGroup });
+    setOriginalPositions(initialPositions);
+    setOriginalRotations(initialRotations);
     setGltfRotations(initialRotations);
+    setGltfTranslations(initialPositions);
     setModelUrl(url);
     if (parts.length > 0) {
       setSelectedPart(parts[0]);
     }
     setSupabaseLoaded(true);
     setSupabaseLoading(false);
-    setModelType('supabase');
   };
 
   const applyLoadedGltfModel = (gltf: any, url: string) => {
-    // Collect bones, or meshes/groups if un-rigged
+    // Traversal to collect targetable elements
     const parts: string[] = [];
     gltf.scene.traverse((node: any) => {
-      if (node.isBone) {
-        parts.push(node.name);
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
       }
-    });
-    
-    if (parts.length === 0) {
-      gltf.scene.traverse((node: any) => {
-        if (node.name && (node.isMesh || node.isGroup) && node !== gltf.scene) {
+      if (node.name && (node.isBone || node.isMesh || node.isGroup) && node !== gltf.scene) {
+        if (!parts.includes(node.name)) {
           parts.push(node.name);
         }
-      });
-    }
+      }
+    });
 
     const initialRotations: Record<string, [number, number, number]> = {};
+    const initialPositions: Record<string, [number, number, number]> = {};
     parts.forEach(p => {
       const obj = gltf.scene.getObjectByName(p);
       if (obj) {
         initialRotations[p] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+        initialPositions[p] = [obj.position.x, obj.position.y, obj.position.z];
       }
     });
 
-    // Automatically align scale and position using a bounding box
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     
-    // Position model above grid and center it
     gltf.scene.position.x += (-center.x);
     gltf.scene.position.y += (-center.y) + size.y / 2 + 0.1; 
     gltf.scene.position.z += (-center.z);
 
     const maxDim = Math.max(size.x, size.y, size.z);
     if (maxDim > 0) {
-      const scaleFactor = 2.2 / maxDim;
+      const scaleFactor = 2.4 / maxDim;
       gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
 
     setGltfModel(gltf);
+    setOriginalPositions(initialPositions);
+    setOriginalRotations(initialRotations);
     setGltfRotations(initialRotations);
+    setGltfTranslations(initialPositions);
     setModelUrl(url);
     if (parts.length > 0) {
       setSelectedPart(parts[0]);
     }
     setSupabaseLoaded(true);
     setSupabaseLoading(false);
-    setModelType('supabase');
-  };
-
-  const updateRotation = (axis: number, value: number) => {
-    setBodyState(prev => {
-      const newState = { ...prev };
-      newState[selectedPart as keyof typeof bodyState] = {
-        ...newState[selectedPart as keyof typeof bodyState],
-        rotation: [...prev[selectedPart as keyof typeof bodyState].rotation] as [number, number, number]
-      };
-      newState[selectedPart as keyof typeof bodyState].rotation[axis] = value;
-      return newState;
-    });
   };
 
   const updateGltfRotation = (axis: number, value: number) => {
-    setGltfRotations(prev => {
-      const current = prev[selectedPart] || [0, 0, 0];
-      const updated = [...current] as [number, number, number];
-      updated[axis] = value;
-      
-      if (gltfModel) {
-        const obj = gltfModel.scene.getObjectByName(selectedPart);
-        if (obj) {
-          obj.rotation.set(updated[0], updated[1], updated[2]);
-        }
-      }
-      return {
+    if (!selectedPart || !gltfModel) return;
+    const obj = gltfModel.scene.getObjectByName(selectedPart);
+    if (obj) {
+      obj.rotation.setComponent(axis, value);
+      setGltfRotations(prev => ({
         ...prev,
-        [selectedPart]: updated
-      };
-    });
+        [selectedPart]: [obj.rotation.x, obj.rotation.y, obj.rotation.z]
+      }));
+    }
   };
 
-  const handleManualRotate = (name: string, rot: [number, number, number]) => {
-    setBodyState(prev => ({
-      ...prev,
-      [name]: { rotation: rot }
-    }));
+  const updateGltfTranslation = (axis: number, value: number) => {
+    if (!selectedPart || !gltfModel) return;
+    const obj = gltfModel.scene.getObjectByName(selectedPart);
+    if (obj) {
+      obj.position.setComponent(axis, value);
+      setGltfTranslations(prev => ({
+        ...prev,
+        [selectedPart]: [obj.position.x, obj.position.y, obj.position.z]
+      }));
+    }
   };
 
   const handleCapture = () => {
@@ -614,39 +262,69 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   };
 
   const resetMannequin = () => {
-    if (modelType === 'supabase' && gltfModel) {
-      const resetRots: Record<string, [number, number, number]> = {};
-      Object.keys(gltfRotations).forEach(k => {
-        resetRots[k] = [0, 0, 0];
+    if (gltfModel) {
+      Object.keys(originalRotations).forEach(k => {
         const obj = gltfModel.scene.getObjectByName(k);
         if (obj) {
-          obj.rotation.set(0, 0, 0);
+          const origRot = originalRotations[k] || [0, 0, 0];
+          const origPos = originalPositions[k] || [0, 0, 0];
+          obj.rotation.set(origRot[0], origRot[1], origRot[2]);
+          obj.position.set(origPos[0], origPos[1], origPos[2]);
         }
       });
-      setGltfRotations(resetRots);
-    } else {
-      setBodyState(DEFAULT_BODY_STATE);
+      setGltfRotations({ ...originalRotations });
+      setGltfTranslations({ ...originalPositions });
     }
   };
 
-  // Selection Indicator helper in 3D canvas
-  const SelectedBoneHelper = () => {
-    if (!gltfModel || modelType !== 'supabase' || !selectedPart) return null;
-    const obj = gltfModel.scene.getObjectByName(selectedPart);
-    if (!obj) return null;
+  const selectedObject = useMemo(() => {
+    if (!gltfModel || !selectedPart) return null;
+    return gltfModel.scene.getObjectByName(selectedPart);
+  }, [gltfModel, selectedPart]);
 
-    const worldPos = new THREE.Vector3();
-    obj.getWorldPosition(worldPos);
+  // Synchronise dragging updates from 3D helper
+  const handleGizmoChange = () => {
+    if (selectedObject) {
+      setGltfRotations(prev => ({
+        ...prev,
+        [selectedPart]: [selectedObject.rotation.x, selectedObject.rotation.y, selectedObject.rotation.z]
+      }));
+      setGltfTranslations(prev => ({
+        ...prev,
+        [selectedPart]: [selectedObject.position.x, selectedObject.position.y, selectedObject.position.z]
+      }));
+    }
+  };
 
-    return (
-      <group position={worldPos}>
-        <axesHelper args={[0.35]} />
-        <mesh>
-          <sphereGeometry args={[0.07, 16, 16]} />
-          <meshBasicMaterial color="#38bdf8" wireframe transparent opacity={0.6} />
-        </mesh>
-      </group>
-    );
+  const SelectionHelper = () => {
+    if (!selectedObject) return null;
+    return <boxHelper args={[selectedObject, '#38bdf8']} />;
+  };
+
+  const CustomTransformControls = () => {
+    const controlsRef = useRef<any>(null);
+    useEffect(() => {
+      const controls = controlsRef.current;
+      if (controls) {
+        const handleDragging = (e: any) => {
+          setIsDragging(e.value);
+        };
+        controls.addEventListener('dragging-changed', handleDragging);
+        return () => {
+          controls.removeEventListener('dragging-changed', handleDragging);
+        };
+      }
+    }, [selectedObject]);
+
+    return selectedObject ? (
+      <TransformControls 
+        ref={controlsRef}
+        object={selectedObject}
+        mode={transformMode}
+        size={0.8}
+        onChange={handleGizmoChange}
+      />
+    ) : null;
   };
 
   return (
@@ -692,10 +370,10 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
               >
                 <color attach="background" args={['#f1f5f9']} />
                 <PerspectiveCamera makeDefault position={[0, 1.4, 4.5]} fov={40} />
-                <OrbitControls makeDefault enablePan={false} minDistance={1.5} maxDistance={7} />
+                <OrbitControls makeDefault enablePan={true} minDistance={1} maxDistance={10} enabled={!isDragging} />
                 
                 <ambientLight intensity={0.9} />
-                <spotLight position={[5, 10, 5]} angle={0.15} penumbra={1} intensity={1} castShadow />
+                <spotLight position={[5, 10, 5]} angle={0.15} penumbra={1} intensity={1.2} castShadow />
                 <pointLight position={[-5, 5, -5]} intensity={0.5} />
                 
                 <Grid 
@@ -709,32 +387,25 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                   position={[0, -1, 0]}
                 />
 
-                {modelType === 'supabase' && gltfModel ? (
+                {gltfModel && (
                   <group position={[0, -0.6, 0]}>
                     <primitive 
                       object={gltfModel.scene} 
                       onClick={(e: any) => {
                         e.stopPropagation();
                         let current = e.object;
-                        const keys = Object.keys(gltfRotations);
-                        while (current && current !== gltfModel.scene) {
-                          if (keys.includes(current.name)) {
-                            setSelectedPart(current.name);
-                            break;
-                          }
-                          current = current.parent;
+                        if (current && current.name) {
+                          setSelectedPart(current.name);
                         }
                       }}
                     />
-                    <SelectedBoneHelper />
+                    
+                    {/* Bounding outline display for selected element */}
+                    <SelectionHelper />
+
+                    {/* Highly responsive interactive 3D gizmo */}
+                    <CustomTransformControls />
                   </group>
-                ) : (
-                  <Mannequin 
-                    selectedPart={selectedPart} 
-                    bodyState={bodyState} 
-                    onSelect={(name) => setSelectedPart(name)}
-                    onRotate={handleManualRotate}
-                  />
                 )}
                 
                 <Environment preset="city" />
@@ -744,62 +415,38 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
             <div className="absolute top-6 left-6 flex flex-col gap-3 pointer-events-none">
               <div className="px-6 py-3 bg-navy text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-2xl flex items-center gap-2 border-b-4 border-sky-400">
                 <Move size={16} />
-                Selected Part: <span className="text-sky-300 ml-1">{selectedPart.replace(/[_-]/g, ' ')}</span>
+                Selected Mesh: <span className="text-sky-300 ml-1">{selectedPart ? selectedPart.replace(/[_-]/g, ' ') : 'None (Click to select)'}</span>
               </div>
               <div className="px-4 py-2 bg-white/95 backdrop-blur-sm border-2 border-navy/15 font-black text-navy text-[10px] rounded-xl shadow-lg flex items-center gap-2">
                 <Database size={12} className="text-sky-500" />
-                Active Source: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">{modelType === 'supabase' ? 'Supabase 3D' : 'Articulated Timber'}</span>
+                Active Model: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">Doll character2.obj</span>
               </div>
             </div>
             
             <button 
-              onClick={() => alert(`How to pose:\n1. Drag the surrounding canvas scene to rotate your viewport perspective.\n2. Click any part of the doll to select it, or use the part dropdown list.\n3. Adjust precise sliders on the controller panel to rotate the selection.\n4. If using "Articulated Timber", feel free to directly drag the 3D ring gizmos that appear directly on active parts!`)}
+              onClick={() => alert('How to pose:\n1. Click on any part of the 3D model directly to select it.\n2. In the right panel, select "Rotate" to orient details, or "Translate" to adjust their positions.\n3. Grab the colored ring/arrow handles directly in the 3D viewport to adjust dynamically.\n4. Fine-tune your adjustments using the high-precision sliders in the control panel.\n5. Press "SAVE POSE" when you are happy with the arrangement to begin the sketch tutorial!')}
               className="absolute bottom-6 left-6 p-4 bg-white border-4 border-navy rounded-[1.5rem] text-navy hover:bg-sky-50 transition-all shadow-lg hover:scale-105 cursor-pointer"
             >
               <HelpCircle size={28} strokeWidth={3} />
             </button>
 
             <div className="absolute bottom-6 right-6 hidden md:block px-4 py-2 bg-navy/10 backdrop-blur-sm rounded-full text-[10px] font-black uppercase text-navy/60">
-              {modelType === 'supabase' ? 'Custom skeletal model' : 'Articulated high-fidelity fallback model'}
+              Interactive 3D Skeletal Mesh Manipulator
             </div>
           </div>
 
           {/* Right: Controller & Options Pane */}
           <div className="w-full lg:w-96 flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar shrink-0">
-            {/* Model Selector / Custom source segment */}
+            {/* Custom URL controller loaded directly */}
             <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-4">
               <h3 className="font-black text-navy text-md uppercase leading-none tracking-tight flex items-center gap-2">
-                <Database size={18} className="text-sky-600" /> Model Source
+                <Database size={18} className="text-sky-600" /> Supabase Storage URL
               </h3>
               
-              <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10">
-                <button
-                  type="button"
-                  onClick={() => setModelType('procedural')}
-                  className={`flex-1 py-1 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${modelType === 'procedural' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
-                >
-                  Procedural Timber
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (supabaseLoaded) {
-                      setModelType('supabase');
-                    } else {
-                      autoDetectAndLoadSupabase();
-                    }
-                  }}
-                  className={`flex-1 py-1 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${modelType === 'supabase' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
-                >
-                  Supabase GLTF {supabaseLoaded && "✓"}
-                </button>
-              </div>
-
-              {/* Supabase Custom URL Loading Input */}
-              <div className="space-y-2 pt-1 border-t border-navy/10">
+              <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-2 justify-between">
                   <label className="text-[10px] font-black uppercase text-navy/40 tracking-wider flex items-center gap-1">
-                    <Link2 size={10} /> Model URL Path (Supabase / Public CDN):
+                    <Link2 size={10} /> Active 3D Model CDN Endpoint:
                   </label>
                   {supabaseLoaded && (
                     <span className="text-[8px] bg-green-500 text-white font-bold px-1.5 py-0.5 rounded uppercase">Connected</span>
@@ -810,7 +457,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                     type="text"
                     value={modelUrl}
                     onChange={(e) => setModelUrl(e.target.value)}
-                    placeholder="https://.../model.glb"
+                    placeholder="https://.../model.obj"
                     className="flex-1 px-3 py-2 border-2 border-navy/20 bg-white rounded-lg text-[11px] font-bold text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy"
                   />
                   <button
@@ -832,20 +479,20 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
               )}
             </div>
 
-            {/* Bone & rotation precision values */}
-            <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-5">
+            {/* Mesh & rotation precision values */}
+            <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-4">
               <h3 className="font-black text-navy uppercase text-lg leading-none flex items-center gap-2">
                 <div className="w-8 h-8 bg-navy text-white rounded-lg flex items-center justify-center">
-                  <Box size={18} />
+                  <Sliders size={18} />
                 </div>
-                Bone Precision
+                Mannequin Pivot Edit
               </h3>
 
               {/* List Dropdown for Supabase bones */}
-              {modelType === 'supabase' && Object.keys(gltfRotations).length > 0 && (
+              {Object.keys(gltfRotations).length > 0 && (
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
-                    Select Bone / Mesh:
+                    Select Part to Move:
                   </label>
                   <select 
                     value={selectedPart}
@@ -861,50 +508,84 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 </div>
               )}
 
-              {modelType === 'procedural' && (
-                <div className="grid grid-cols-2 gap-1 bg-navy/5 p-1 rounded-xl border border-navy/10 text-[9px] font-bold text-navy/70 text-center uppercase tracking-wider select-none shrink-0">
-                  <div className={`p-1.5 rounded-lg ${selectedPart === 'pelvis' || selectedPart === 'torso' || selectedPart === 'head' ? 'bg-white text-navy font-black shadow-sm' : ''}`}>Core</div>
-                  <div className={`p-1.5 rounded-lg ${selectedPart !== 'pelvis' && selectedPart !== 'torso' && selectedPart !== 'head' ? 'bg-white text-navy font-black shadow-sm' : ''}`}>Limbs</div>
+              {/* Mode Toggler */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
+                  Transformation Mode:
+                </label>
+                <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10 select-none">
+                  <button
+                    type="button"
+                    onClick={() => setTransformMode('rotate')}
+                    className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'rotate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
+                  >
+                    <RefreshCw size={12} /> Rotate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransformMode('translate')}
+                    className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'translate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
+                  >
+                    <Move size={12} /> Translate
+                  </button>
                 </div>
-              )}
+              </div>
 
-              <div className="space-y-5">
-                {['X Rotation', 'Y Rotation', 'Z Rotation'].map((axis, i) => {
-                  const val = modelType === 'supabase'
-                    ? (gltfRotations[selectedPart] ? gltfRotations[selectedPart][i] : 0)
-                    : (bodyState[selectedPart as keyof typeof bodyState]?.rotation[i] || 0);
-
-                  const changeHandler = (v: number) => {
-                    if (modelType === 'supabase') {
-                      updateGltfRotation(i, v);
-                    } else {
-                      updateRotation(i, v);
-                    }
-                  };
-
-                  return (
-                    <div key={axis} className="space-y-2">
-                      <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
-                        <span>{axis}</span>
-                        <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
-                          {Math.round(val * 180 / Math.PI)}°
+              {/* Interactive sliders based on transform mode */}
+              <div className="space-y-4 pt-2">
+                {transformMode === 'rotate' ? (
+                  ['X Rotation', 'Y Rotation', 'Z Rotation'].map((axis, i) => {
+                    const val = gltfRotations[selectedPart] ? gltfRotations[selectedPart][i] : 0;
+                    return (
+                      <div key={axis} className="space-y-2">
+                        <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
+                          <span>{axis}</span>
+                          <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
+                            {Math.round(val * 180 / Math.PI)}°
+                          </div>
+                        </div>
+                        <div className="relative flex items-center group">
+                          <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
+                          <input 
+                            type="range"
+                            min={-Math.PI}
+                            max={Math.PI}
+                            step={0.001}
+                            value={val}
+                            onChange={(e) => updateGltfRotation(i, parseFloat(e.target.value))}
+                            className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-500"
+                          />
                         </div>
                       </div>
-                      <div className="relative flex items-center group">
-                        <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
-                        <input 
-                          type="range"
-                          min={-Math.PI}
-                          max={Math.PI}
-                          step={0.001}
-                          value={val}
-                          onChange={(e) => changeHandler(parseFloat(e.target.value))}
-                          className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-500"
-                        />
+                    );
+                  })
+                ) : (
+                  ['X Position', 'Y Position', 'Z Position'].map((axis, i) => {
+                    const val = gltfTranslations[selectedPart] ? gltfTranslations[selectedPart][i] : 0;
+                    return (
+                      <div key={axis} className="space-y-2">
+                        <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
+                          <span>{axis}</span>
+                          <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
+                            {val.toFixed(3)}
+                          </div>
+                        </div>
+                        <div className="relative flex items-center group">
+                          <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
+                          <input 
+                            type="range"
+                            min={-2.0}
+                            max={2.0}
+                            step={0.001}
+                            value={val}
+                            onChange={(e) => updateGltfTranslation(i, parseFloat(e.target.value))}
+                            className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-400"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -913,7 +594,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
               <button
                 type="button"
                 onClick={resetMannequin}
-                className="flex items-center justify-center gap-3 w-full py-4 bg-white border-4 border-navy text-navy rounded-2xl font-black uppercase tracking-wider hover:bg-red-50 hover:border-red-500 hover:text-red-500 transition-all active:scale-95 cursor-pointer text-xs"
+                className="flex items-center justify-center gap-3 w-full py-4 bg-white border-4 border-navy text-navy rounded-2xl font-black uppercase tracking-wider hover:bg-red-50 hover:border-red-500 hover:text-red-500 transition-all active:scale-95 cursor-pointer text-xs animate-none"
               >
                 <RotateCcw size={18} strokeWidth={3} />
                 Reset Skeleton
@@ -928,14 +609,14 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                   <Check size={30} strokeWidth={4} />
                   SAVE POSE
                 </div>
-                <span className="text-[9px] uppercase font-bold opacity-60">Generate drawing tutorial</span>
+                <span className="text-[9px] uppercase font-bold opacity-60">Generate drawings tutorial</span>
               </button>
             </div>
 
             <div className="bg-sky-50 p-4 border border-navy/15 rounded-[1.8rem] flex gap-3 items-start">
               <div className="text-xl">💡</div>
               <p className="text-[10px] font-bold text-navy/70 leading-relaxed uppercase">
-                <span className="text-navy">Master Tip:</span> For realistic posture, start with the <span className="text-navy">Pelvis</span> to balance gravity, then rotate the shoulders and hips.
+                <span className="text-navy">Instructor Tip:</span> Toggle between <span className="text-navy">Rotate</span> and <span className="text-navy">Translate</span> to perfectly fine-tune unrigged model joints!
               </p>
             </div>
           </div>
