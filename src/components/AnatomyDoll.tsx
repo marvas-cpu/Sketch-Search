@@ -121,15 +121,250 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   };
 
   const applyLoadedObjModel = (objGroup: any, url: string) => {
-    // Auto-name meshes at the start to ensure they are targetable and selectable
+    // Determine if we need to auto-rig (only 1 mesh or LineSegments)
+    let meshCount = 0;
+    let sourceNode: any = null;
+    objGroup.traverse((node: any) => {
+      if (node.isMesh || node.isLineSegments || node.isLine) {
+        meshCount++;
+        if (!sourceNode) {
+          sourceNode = node;
+        }
+      }
+    });
+
+    let puppet: THREE.Group;
+
+    if (meshCount <= 1 && sourceNode && sourceNode.geometry) {
+      console.log("Monolithic un-rigged OBJ detected! Performing high-precision programmatic anatomical rigging...");
+      
+      // Center the source geometry so coordinate calculations are 100% symmetric
+      sourceNode.geometry.center();
+
+      const originalGeom = sourceNode.geometry;
+      // Convert to non-indexed to avoid indexing reference bugs during vertex chunk mapping
+      const unindexedGeom = originalGeom.index ? originalGeom.toNonIndexed() : originalGeom.clone();
+      const posAttr = unindexedGeom.getAttribute('position');
+
+      if (posAttr) {
+        // Anatomical joints mapping with exact symmetrical relative pivots & bounds
+        const partsList = [
+          { name: 'Head', filter: (x: number, y: number, z: number) => y > 1.15, pivot: [0, 1.25, 0] },
+          { name: 'Torso', filter: (x: number, y: number, z: number) => y >= -0.4 && y <= 1.15 && x >= -0.35 && x <= 0.35, pivot: [0, 0.4, 0] },
+          { name: 'Left_Upper_Arm', filter: (x: number, y: number, z: number) => x < -0.35 && y >= 0.2, pivot: [-0.45, 0.9, 0] },
+          { name: 'Left_Forearm', filter: (x: number, y: number, z: number) => x < -0.35 && y < 0.2 && y >= -0.7, pivot: [-0.85, 0.1, 0] },
+          { name: 'Left_Hand', filter: (x: number, y: number, z: number) => x < -0.35 && y < -0.7, pivot: [-1.25, -0.4, 0] },
+          { name: 'Right_Upper_Arm', filter: (x: number, y: number, z: number) => x > 0.35 && y >= 0.2, pivot: [0.45, 0.9, 0] },
+          { name: 'Right_Forearm', filter: (x: number, y: number, z: number) => x > 0.35 && y < 0.2 && y >= -0.7, pivot: [0.85, 0.1, 0] },
+          { name: 'Right_Hand', filter: (x: number, y: number, z: number) => x > 0.35 && y < -0.7, pivot: [1.25, -0.4, 0] },
+          { name: 'Left_Thigh', filter: (x: number, y: number, z: number) => x < 0 && y < -0.4 && y >= -1.2, pivot: [-0.25, -0.4, 0] },
+          { name: 'Left_Shin', filter: (x: number, y: number, z: number) => x < 0 && y < -1.2, pivot: [-0.25, -1.2, 0] },
+          { name: 'Right_Thigh', filter: (x: number, y: number, z: number) => x >= 0 && y < -0.4 && y >= -1.2, pivot: [0.25, -0.4, 0] },
+          { name: 'Right_Shin', filter: (x: number, y: number, z: number) => x >= 0 && y < -1.2, pivot: [0.25, -1.2, 0] }
+        ];
+
+        const vertexCount = posAttr.count;
+        const isLine = sourceNode.isLineSegments || sourceNode.isLine;
+        const step = isLine ? 2 : 3;
+
+        const partVertices: Record<string, number[]> = {};
+        partsList.forEach(p => {
+          partVertices[p.name] = [];
+        });
+
+        for (let i = 0; i < vertexCount; i += step) {
+          let avgX = 0, avgY = 0, avgZ = 0;
+          let count = 0;
+          for (let s = 0; s < step; s++) {
+            const idx = i + s;
+            if (idx < vertexCount) {
+              avgX += posAttr.getX(idx);
+              avgY += posAttr.getY(idx);
+              avgZ += posAttr.getZ(idx);
+              count++;
+            }
+          }
+          if (count > 0) {
+            avgX /= count;
+            avgY /= count;
+            avgZ /= count;
+          }
+
+          let assignedPart = 'Torso';
+          for (const p of partsList) {
+            if (p.filter(avgX, avgY, avgZ)) {
+              assignedPart = p.name;
+              break;
+            }
+          }
+
+          for (let s = 0; s < step; s++) {
+            const idx = i + s;
+            if (idx < vertexCount) {
+              partVertices[assignedPart].push(
+                posAttr.getX(idx),
+                posAttr.getY(idx),
+                posAttr.getZ(idx)
+              );
+            }
+          }
+        }
+
+        puppet = new THREE.Group();
+        puppet.name = "Puppet_Root";
+
+        const groupByName: Record<string, THREE.Group> = {};
+        partsList.forEach(p => {
+          const group = new THREE.Group();
+          group.name = p.name;
+          group.position.set(p.pivot[0], p.pivot[1], p.pivot[2]);
+          groupByName[p.name] = group;
+        });
+
+        partsList.forEach(p => {
+          const name = p.name;
+          const verts = partVertices[name];
+          if (verts.length === 0) return;
+
+          const geom = new THREE.BufferGeometry();
+          const arr = new Float32Array(verts);
+          geom.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+
+          const pos = geom.getAttribute('position');
+          if (pos) {
+            for (let j = 0; j < pos.count; j++) {
+              pos.setX(j, pos.getX(j) - p.pivot[0]);
+              pos.setY(j, pos.getY(j) - p.pivot[1]);
+              pos.setZ(j, pos.getZ(j) - p.pivot[2]);
+            }
+          }
+          geom.computeBoundingBox();
+          geom.computeBoundingSphere();
+
+          let visualPart: THREE.Object3D;
+          if (isLine) {
+            visualPart = new THREE.LineSegments(
+              geom,
+              new THREE.LineBasicMaterial({ 
+                color: '#475569', 
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.85
+              })
+            );
+          } else {
+            visualPart = new THREE.Mesh(
+              geom,
+              new THREE.MeshStandardMaterial({
+                color: "#e2e8f0",
+                roughness: 0.65,
+                metalness: 0.1,
+                side: THREE.DoubleSide
+              })
+            );
+          }
+          visualPart.name = name + "_Mesh";
+          visualPart.castShadow = true;
+          visualPart.receiveShadow = true;
+
+          groupByName[name].add(visualPart);
+        });
+
+        const tPivot = partsList.find(p => p.name === 'Torso')!.pivot;
+        const hPivot = partsList.find(p => p.name === 'Head')!.pivot;
+        const luaPivot = partsList.find(p => p.name === 'Left_Upper_Arm')!.pivot;
+        const lfaPivot = partsList.find(p => p.name === 'Left_Forearm')!.pivot;
+        const lhPivot = partsList.find(p => p.name === 'Left_Hand')!.pivot;
+        const ruaPivot = partsList.find(p => p.name === 'Right_Upper_Arm')!.pivot;
+        const rfaPivot = partsList.find(p => p.name === 'Right_Forearm')!.pivot;
+        const rhPivot = partsList.find(p => p.name === 'Right_Hand')!.pivot;
+        const ltPivot = partsList.find(p => p.name === 'Left_Thigh')!.pivot;
+        const lsPivot = partsList.find(p => p.name === 'Left_Shin')!.pivot;
+        const rtPivot = partsList.find(p => p.name === 'Right_Thigh')!.pivot;
+        const rsPivot = partsList.find(p => p.name === 'Right_Shin')!.pivot;
+
+        puppet.add(groupByName['Torso']);
+
+        groupByName['Head'].position.set(hPivot[0] - tPivot[0], hPivot[1] - tPivot[1], hPivot[2] - tPivot[2]);
+        groupByName['Torso'].add(groupByName['Head']);
+
+        groupByName['Left_Upper_Arm'].position.set(luaPivot[0] - tPivot[0], luaPivot[1] - tPivot[1], luaPivot[2] - tPivot[2]);
+        groupByName['Torso'].add(groupByName['Left_Upper_Arm']);
+
+        groupByName['Left_Forearm'].position.set(lfaPivot[0] - luaPivot[0], lfaPivot[1] - luaPivot[1], lfaPivot[2] - luaPivot[2]);
+        groupByName['Left_Upper_Arm'].add(groupByName['Left_Forearm']);
+
+        groupByName['Left_Hand'].position.set(lhPivot[0] - lfaPivot[0], lhPivot[1] - lfaPivot[1], lhPivot[2] - lfaPivot[2]);
+        groupByName['Left_Forearm'].add(groupByName['Left_Hand']);
+
+        groupByName['Right_Upper_Arm'].position.set(ruaPivot[0] - tPivot[0], ruaPivot[1] - tPivot[1], ruaPivot[2] - tPivot[2]);
+        groupByName['Torso'].add(groupByName['Right_Upper_Arm']);
+
+        groupByName['Right_Forearm'].position.set(rfaPivot[0] - ruaPivot[0], rfaPivot[1] - ruaPivot[1], rfaPivot[2] - ruaPivot[2]);
+        groupByName['Right_Upper_Arm'].add(groupByName['Right_Forearm']);
+
+        groupByName['Right_Hand'].position.set(rhPivot[0] - rfaPivot[0], rhPivot[1] - rfaPivot[1], rhPivot[2] - rfaPivot[2]);
+        groupByName['Right_Forearm'].add(groupByName['Right_Hand']);
+
+        groupByName['Left_Thigh'].position.set(ltPivot[0] - tPivot[0], ltPivot[1] - tPivot[1], ltPivot[2] - tPivot[2]);
+        groupByName['Torso'].add(groupByName['Left_Thigh']);
+
+        groupByName['Left_Shin'].position.set(lsPivot[0] - ltPivot[0], lsPivot[1] - ltPivot[1], lsPivot[2] - ltPivot[2]);
+        groupByName['Left_Thigh'].add(groupByName['Left_Shin']);
+
+        groupByName['Right_Thigh'].position.set(rtPivot[0] - tPivot[0], rtPivot[1] - tPivot[1], rtPivot[2] - tPivot[2]);
+        groupByName['Torso'].add(groupByName['Right_Thigh']);
+
+        groupByName['Right_Shin'].position.set(rsPivot[0] - rtPivot[0], rsPivot[1] - rtPivot[1], rsPivot[2] - rtPivot[2]);
+        groupByName['Right_Thigh'].add(groupByName['Right_Shin']);
+
+        const parts: string[] = partsList.map(p => p.name);
+        const initialRotations: Record<string, [number, number, number]> = {};
+        const initialPositions: Record<string, [number, number, number]> = {};
+        parts.forEach(p => {
+          const o = puppet.getObjectByName(p);
+          if (o) {
+            initialRotations[p] = [o.rotation.x, o.rotation.y, o.rotation.z];
+            initialPositions[p] = [o.position.x, o.position.y, o.position.z];
+          }
+        });
+
+        const box = new THREE.Box3().setFromObject(puppet);
+        const size2 = box.getSize(new THREE.Vector3());
+        const center2 = box.getCenter(new THREE.Vector3());
+        puppet.position.x += (-center2.x);
+        puppet.position.y += (-center2.y) + size2.y / 2 + 0.1;
+        puppet.position.z += (-center2.z);
+
+        const maxDim = Math.max(size2.x, size2.y, size2.z);
+        if (maxDim > 0) {
+          const scaleFactor = 2.4 / maxDim;
+          puppet.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        }
+
+        setGltfModel({ scene: puppet });
+        setOriginalPositions(initialPositions);
+        setOriginalRotations(initialRotations);
+        setGltfRotations(initialRotations);
+        setGltfTranslations(initialPositions);
+        setModelUrl(url);
+        if (parts.length > 0) {
+          setSelectedPart(parts[0]);
+        }
+        setSupabaseLoaded(true);
+        setSupabaseLoading(false);
+        return;
+      }
+    }
+
+    // Fallback standard un-rigged loader
     let meshIdx = 1;
     objGroup.traverse((node: any) => {
-      if (node.isMesh) {
+      if (node.isMesh || node.isLineSegments || node.isLine) {
         node.name = node.name || `Body_Part_${meshIdx++}`;
         node.castShadow = true;
         node.receiveShadow = true;
         
-        // Premium matte drawing model theme
         if (!node.material || (Array.isArray(node.material) && node.material.length === 0)) {
           node.material = new THREE.MeshStandardMaterial({
             color: "#e2e8f0",
@@ -149,10 +384,9 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     });
 
-    // Gather parts
     const parts: string[] = [];
     objGroup.traverse((node: any) => {
-      if (node.name && (node.isMesh || node.isGroup || node.isBone) && node !== objGroup) {
+      if (node.name && (node.isMesh || node.isGroup || node.isBone || node.isLineSegments || node.isLine) && node !== objGroup) {
         if (!parts.includes(node.name)) {
           parts.push(node.name);
         }
@@ -169,7 +403,6 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     });
 
-    // Center and scale model using bounding box calculations
     const box = new THREE.Box3().setFromObject(objGroup);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
@@ -445,7 +678,11 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                             }
                           }
                           if (current.name) {
-                            setSelectedPart(current.name);
+                            let partName = current.name;
+                            if (partName.endsWith('_Mesh')) {
+                              partName = partName.replace('_Mesh', '');
+                            }
+                            setSelectedPart(partName);
                           }
                         }
                       }}
