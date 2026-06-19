@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Grid, Environment, TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'motion/react';
-import { X, Check, RotateCcw, Box, HelpCircle, Move, Database, AlertCircle, Link2, Sliders, RefreshCw } from 'lucide-react';
+import { X, Check, RotateCcw, Box, HelpCircle, Move, Database, AlertCircle, Link2, Sliders, RefreshCw, Sparkles } from 'lucide-react';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
@@ -41,11 +41,11 @@ const getFriendlyPartName = (name: string): string => {
     'spine.004': 'Neck Base',
     'spine.005': 'Neck Mid',
     'spine.006': 'Head Joint',
-    'shoulder.L': 'Left Shoulder Clint',
+    'shoulder.L': 'Left Shoulder Joint',
     'upper_arm.L': 'Left Upper Arm (Bicep)',
     'forearm.L': 'Left Forearm (Elbow)',
     'hand.L': 'Left Hand (Wrist)',
-    'shoulder.R': 'Right Shoulder Clint',
+    'shoulder.R': 'Right Shoulder Joint',
     'upper_arm.R': 'Right Upper Arm (Bicep)',
     'forearm.R': 'Right Forearm (Elbow)',
     'hand.R': 'Right Hand (Wrist)',
@@ -109,6 +109,16 @@ const getPartPriority = (name: string): number => {
   return 150;
 };
 
+const mapDEFToActualBone = (name: string): string => {
+  let target = name;
+  if (target.startsWith('DEF-')) {
+    target = target.substring(4);
+  }
+  if (target === 'neck') return 'spine.004';
+  if (target === 'head') return 'spine.006';
+  return target;
+};
+
 const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -131,6 +141,56 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
   const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character3.glb');
+
+  // Helper inside component to pose joints from a Rigify/DEF payload
+  const applyGeminiPose = (poseJson: Record<string, { x?: number; y?: number; z?: number }>) => {
+    if (!gltfModel) {
+      console.warn("The 3D mannequin model hasn't loaded yet.");
+      return;
+    }
+
+    const updatedRotations = { ...gltfRotations };
+    
+    for (const rawBoneName in poseJson) {
+      const actualName = mapDEFToActualBone(rawBoneName);
+      const obj = gltfModel.scene.getObjectByName(actualName);
+      if (obj) {
+        const rotations = poseJson[rawBoneName];
+        if (rotations.x !== undefined) obj.rotation.x = rotations.x;
+        if (rotations.y !== undefined) obj.rotation.y = rotations.y;
+        if (rotations.z !== undefined) obj.rotation.z = rotations.z;
+        
+        updatedRotations[actualName] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+      } else {
+        console.warn(`Bone mapping not found for direct Input Name: ${rawBoneName} (Mapped Name: ${actualName})`);
+      }
+    }
+    
+    setGltfRotations(updatedRotations);
+  };
+
+  // Sync global window functions
+  useEffect(() => {
+    if (gltfModel) {
+      (window as any).applyGeminiPose = (poseJson: any) => {
+        applyGeminiPose(poseJson);
+      };
+      
+      (window as any).testPose = () => {
+        const fakePose = {
+          "DEF-upper_arm.R": { "x": 1.2, "y": 0.0, "z": -0.5 },
+          "DEF-forearm.R": { "x": 0.8, "y": 0.0, "z": 0.0 },
+          "DEF-head": { "x": 0.0, "y": 0.4, "z": 0.0 }
+        };
+        applyGeminiPose(fakePose);
+      };
+    }
+    
+    return () => {
+      delete (window as any).applyGeminiPose;
+      delete (window as any).testPose;
+    };
+  }, [gltfModel, gltfRotations]);
 
   // Attempt to load standard Supabase model on mount
   useEffect(() => {
@@ -887,6 +947,27 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                   <p className="text-[10px] text-orange-700 font-bold leading-tight uppercase">{supabaseError}</p>
                 </div>
               )}
+            </div>
+
+            {/* AI Pose Controller Integration */}
+            <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-4">
+              <h3 className="font-black text-navy text-md uppercase leading-none tracking-tight flex items-center gap-2">
+                <Sparkles size={18} className="text-indigo-600 animate-pulse animate-duration-1000" /> AI Pose Controller
+              </h3>
+              <p className="text-[11px] font-bold text-navy/70 leading-relaxed uppercase">
+                Μόλις το Gemini επιστρέψει το JSON, η συνάρτηση <code className="bg-navy/10 px-1 py-0.5 rounded text-navy">applyGeminiPose()</code> θα αλλάξει την πόζα της κούκλας.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if ((window as any).testPose) {
+                    (window as any).testPose();
+                  }
+                }}
+                className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Sparkles size={14} /> Δοκιμή Πόζας (Test Pose)
+              </button>
             </div>
 
             {/* Mesh & rotation precision values */}
