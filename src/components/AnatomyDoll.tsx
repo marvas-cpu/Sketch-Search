@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { motion } from 'motion/react';
 import { X, Check, RotateCcw, Box, HelpCircle, Move, Search, Database, AlertCircle, Link2 } from 'lucide-react';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 interface BoneProps {
   position: [number, number, number];
@@ -363,32 +364,50 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [supabaseLoading, setSupabaseLoading] = useState(false);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
-  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/poses/anatomy_doll.glb');
+  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character2.obj');
 
   // Attempt to load standard Supabase models on mount
   useEffect(() => {
     autoDetectAndLoadSupabase();
   }, []);
 
+  const loadAnyModel = async (url: string): Promise<{ type: 'obj' | 'gltf'; data: any }> => {
+    const isObj = url.toLowerCase().split('?')[0].endsWith('.obj') || url.toLowerCase().includes('.obj');
+    if (isObj) {
+      const loader = new OBJLoader();
+      const obj = await new Promise<any>((resolve, reject) => {
+        loader.load(url, resolve, undefined, reject);
+      });
+      return { type: 'obj', data: obj };
+    } else {
+      const loader = new GLTFLoader();
+      const gltf = await new Promise<any>((resolve, reject) => {
+        loader.load(url, resolve, undefined, reject);
+      });
+      return { type: 'gltf', data: gltf };
+    }
+  };
+
   const autoDetectAndLoadSupabase = async () => {
     setSupabaseLoading(true);
     setSupabaseError(null);
     const candidates = [
+      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character2.obj',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/poses/anatomy_doll.glb',
-      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/poses/mannequin.glb',
-      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/models/anatomy_doll.glb'
+      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/poses/mannequin.glb'
     ];
 
-    const loader = new GLTFLoader();
     for (const url of candidates) {
       try {
-        const gltf = await new Promise<any>((resolve, reject) => {
-          loader.load(url, resolve, undefined, reject);
-        });
-        applyLoadedGltfModel(gltf, url);
+        const result = await loadAnyModel(url);
+        if (result.type === 'obj') {
+          applyLoadedObjModel(result.data, url);
+        } else {
+          applyLoadedGltfModel(result.data, url);
+        }
         return; // Break immediately if we succeed!
       } catch (err) {
-        // Fall back silenty during auto-probing
+        // Fall back silently during auto-probing
       }
     }
 
@@ -402,17 +421,100 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     if (!urlToLoad) return;
     setSupabaseLoading(true);
     setSupabaseError(null);
-    const loader = new GLTFLoader();
     try {
-      const gltf = await new Promise<any>((resolve, reject) => {
-        loader.load(urlToLoad, resolve, undefined, reject);
-      });
-      applyLoadedGltfModel(gltf, urlToLoad);
+      const result = await loadAnyModel(urlToLoad);
+      if (result.type === 'obj') {
+        applyLoadedObjModel(result.data, urlToLoad);
+      } else {
+        applyLoadedGltfModel(result.data, urlToLoad);
+      }
     } catch (err: any) {
       console.error(err);
-      setSupabaseError(err.message || "Failed to parse or fetch GLTF model. Check the CORS settings or URL endpoint.");
+      setSupabaseError(err.message || "Failed to parse or fetch model. Check the CORS settings or URL endpoint.");
       setSupabaseLoading(false);
     }
+  };
+
+  const applyLoadedObjModel = (objGroup: any, url: string) => {
+    // Traverse meshes and enrich visual styles for beautiful rendering
+    objGroup.traverse((node: any) => {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+        
+        // Give the OBJ mesh parts standard matte color if material is fresh/undefined or basic white
+        if (!node.material || (Array.isArray(node.material) && node.material.length === 0)) {
+          node.material = new THREE.MeshStandardMaterial({
+            color: "#dfc8a5", // Rich timber timber representation
+            roughness: 0.35,
+            metalness: 0.05,
+            side: THREE.DoubleSide
+          });
+        } else {
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          mats.forEach((mat: any) => {
+            mat.side = THREE.DoubleSide;
+            if (mat.color && (mat.color.getHex() === 0xffffff || mat.color.getHex() === 0xcccccc)) {
+              mat.color.set("#dfc8a5"); // Warm aesthetic timber tone instead of plain grey/white
+            }
+          });
+        }
+      }
+    });
+
+    // Find children in the model to use as pose segments/bones
+    const parts: string[] = [];
+    objGroup.traverse((node: any) => {
+      if (node.name && (node.isMesh || node.isGroup || node.isBone) && node !== objGroup) {
+        parts.push(node.name);
+      }
+    });
+
+    if (parts.length === 0) {
+      // Auto-segment parts if they don't have explicit names so that we can select & manipulate segments!
+      let meshIdx = 1;
+      objGroup.traverse((node: any) => {
+        if (node.isMesh) {
+          node.name = node.name || `Body Part ${meshIdx++}`;
+          parts.push(node.name);
+        }
+      });
+    }
+
+    const initialRotations: Record<string, [number, number, number]> = {};
+    parts.forEach(p => {
+      const obj = objGroup.getObjectByName(p);
+      if (obj) {
+        initialRotations[p] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+      }
+    });
+
+    // Automatically align scale and position using a bounding box
+    const box = new THREE.Box3().setFromObject(objGroup);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    
+    // Position model above grid and center it
+    objGroup.position.x += (-center.x);
+    objGroup.position.y += (-center.y) + size.y / 2 + 0.1; 
+    objGroup.position.z += (-center.z);
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim > 0) {
+      const scaleFactor = 2.2 / maxDim;
+      objGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    }
+
+    // Embed under virtual gltf wrapper object so it integrates with existing canvas mechanics
+    setGltfModel({ scene: objGroup });
+    setGltfRotations(initialRotations);
+    setModelUrl(url);
+    if (parts.length > 0) {
+      setSelectedPart(parts[0]);
+    }
+    setSupabaseLoaded(true);
+    setSupabaseLoading(false);
+    setModelType('supabase');
   };
 
   const applyLoadedGltfModel = (gltf: any, url: string) => {
