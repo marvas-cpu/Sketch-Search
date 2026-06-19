@@ -30,6 +30,85 @@ const canTranslateObject = (object: any, gltfModelScene: any) => {
   return true;
 };
 
+const getFriendlyPartName = (name: string): string => {
+  if (!name) return 'None';
+  
+  const mappings: Record<string, string> = {
+    'spine': 'Lower Spine (Pelvis)',
+    'spine.001': 'Spine Lower-Mid',
+    'spine.002': 'Spine Mid-Upper',
+    'spine.003': 'Spine Upper',
+    'spine.004': 'Neck Base',
+    'spine.005': 'Neck Mid',
+    'spine.006': 'Head Joint',
+    'shoulder.L': 'Left Shoulder Clint',
+    'upper_arm.L': 'Left Upper Arm (Bicep)',
+    'forearm.L': 'Left Forearm (Elbow)',
+    'hand.L': 'Left Hand (Wrist)',
+    'shoulder.R': 'Right Shoulder Clint',
+    'upper_arm.R': 'Right Upper Arm (Bicep)',
+    'forearm.R': 'Right Forearm (Elbow)',
+    'hand.R': 'Right Hand (Wrist)',
+    'thigh.L': 'Left Thigh (Hip Joint)',
+    'shin.L': 'Left Shin (Knee)',
+    'foot.L': 'Left Foot (Ankle)',
+    'toe.L': 'Left Toes',
+    'thigh.R': 'Right Thigh (Hip Joint)',
+    'shin.R': 'Right Shin (Knee)',
+    'foot.R': 'Right Foot (Ankle)',
+    'toe.R': 'Right Toes',
+    'pelvis.L': 'Left Pelvis',
+    'pelvis.R': 'Right Pelvis',
+  };
+
+  if (name.startsWith('thumb.')) {
+    return `Left Thumb Joint ${name.split('.')[1] || ''}`;
+  }
+  if (name.startsWith('f_index.')) {
+    return `Left Index Finger ${name.split('.')[1] || ''}`;
+  }
+  if (name.startsWith('f_middle.')) {
+    return `Left Middle Finger ${name.split('.')[1] || ''}`;
+  }
+  if (name.startsWith('f_ring.')) {
+    return `Left Ring Finger ${name.split('.')[1] || ''}`;
+  }
+  if (name.endsWith('.R')) {
+    const base = name.substring(0, name.length - 2);
+    if (base.startsWith('thumb.')) return `Right Thumb Joint ${base.split('.')[1] || ''}`;
+    if (base.startsWith('f_index.')) return `Right Index Finger ${base.split('.')[1] || ''}`;
+    if (base.startsWith('f_middle.')) return `Right Middle Finger ${base.split('.')[1] || ''}`;
+    if (base.startsWith('f_ring.')) return `Right Ring Finger ${base.split('.')[1] || ''}`;
+  }
+
+  if (mappings[name]) return mappings[name];
+  return name.replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
+
+const getPartPriority = (name: string): number => {
+  if (name === 'spine') return 10;
+  if (name.startsWith('spine.')) {
+    const num = parseFloat(name.split('.')[1]) || 0;
+    return 10 + num;
+  }
+  
+  if (name.includes('upper_arm')) return 30;
+  if (name.includes('forearm')) return 40;
+  if (name.includes('hand')) return 50;
+  
+  if (name.includes('thigh')) return 60;
+  if (name.includes('shin')) return 70;
+  if (name.includes('foot')) return 80;
+  
+  if (name.includes('shoulder')) return 20;
+  if (name.includes('pelvis')) return 25;
+  
+  if (name.includes('palm')) return 90;
+  if (name.includes('f_index') || name.includes('thumb') || name.includes('f_middle') || name.includes('f_ring')) return 100;
+  
+  return 150;
+};
+
 const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -51,7 +130,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [supabaseLoading, setSupabaseLoading] = useState(false);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
-  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character2.obj');
+  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character3.glb');
 
   // Attempt to load standard Supabase model on mount
   useEffect(() => {
@@ -79,6 +158,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     setSupabaseLoading(true);
     setSupabaseError(null);
     const candidates = [
+      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character3.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character2.obj',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/poses/anatomy_doll.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/poses/mannequin.glb'
@@ -431,18 +511,43 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   };
 
   const applyLoadedGltfModel = (gltf: any, url: string) => {
-    // Traversal to collect targetable elements
-    const parts: string[] = [];
+    // Traverse to verify if the model actually has skeletal bone elements
+    let hasBones = false;
     gltf.scene.traverse((node: any) => {
+      if (node.isBone) {
+        hasBones = true;
+      }
       if (node.isMesh) {
         node.castShadow = true;
         node.receiveShadow = true;
       }
-      if (node.name && (node.isBone || node.isMesh || node.isGroup) && node !== gltf.scene) {
-        if (!parts.includes(node.name)) {
-          parts.push(node.name);
+    });
+
+    // Traversal to collect targetable elements
+    const parts: string[] = [];
+    gltf.scene.traverse((node: any) => {
+      if (node.name && node !== gltf.scene) {
+        // If hasBones is true, we ONLY list/select bones to avoid listing skins or un-rigged components.
+        if (hasBones) {
+          if (node.isBone) {
+            if (!parts.includes(node.name)) {
+              parts.push(node.name);
+            }
+          }
+        } else {
+          if ((node.isMesh || node.isGroup) && !parts.includes(node.name)) {
+            parts.push(node.name);
+          }
         }
       }
+    });
+
+    // Sort parts so major skeletal limbs are listed first in the dropdown for beautiful UX
+    parts.sort((a, b) => {
+      const prioA = getPartPriority(a);
+      const prioB = getPartPriority(b);
+      if (prioA !== prioB) return prioA - prioB;
+      return a.localeCompare(b);
     });
 
     const initialRotations: Record<string, [number, number, number]> = {};
@@ -562,6 +667,23 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
 
   const SelectionHelper = () => {
     if (!selectedObject) return null;
+    
+    // For a bone (which lacks vertices of its own), we render a nice glowing joint representation
+    if (selectedObject.isBone) {
+      const worldPos = new THREE.Vector3();
+      selectedObject.getWorldPosition(worldPos);
+      
+      // Offset by the parent group's relative Y coordinate shift (-0.6)
+      worldPos.y -= -0.6;
+      
+      return (
+        <mesh position={[worldPos.x, worldPos.y, worldPos.z]}>
+          <sphereGeometry args={[0.05, 12, 12]} />
+          <meshBasicMaterial color="#0ea5e9" wireframe transparent opacity={0.8} />
+        </mesh>
+      );
+    }
+    
     return <boxHelper args={[selectedObject, '#38bdf8']} />;
   };
 
@@ -703,11 +825,11 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
             <div className="absolute top-6 left-6 flex flex-col gap-3 pointer-events-none">
               <div className="px-6 py-3 bg-navy text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-2xl flex items-center gap-2 border-b-4 border-sky-400">
                 <Move size={16} />
-                Selected Mesh: <span className="text-sky-300 ml-1">{selectedPart ? selectedPart.replace(/[_-]/g, ' ') : 'None (Click to select)'}</span>
+                Selected Joint: <span className="text-sky-300 ml-1">{selectedPart ? getFriendlyPartName(selectedPart) : 'None (Click to select)'}</span>
               </div>
               <div className="px-4 py-2 bg-white/95 backdrop-blur-sm border-2 border-navy/15 font-black text-navy text-[10px] rounded-xl shadow-lg flex items-center gap-2">
                 <Database size={12} className="text-sky-500" />
-                Active Model: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">Doll character2.obj</span>
+                Active Model: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">{modelUrl.substring(modelUrl.lastIndexOf('/') + 1) || 'Doll character3.glb'}</span>
               </div>
             </div>
             
@@ -789,7 +911,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                   >
                     {Object.keys(gltfRotations).map((partName) => (
                       <option key={partName} value={partName}>
-                        {partName.replace(/[_-]/g, ' ')}
+                        {getFriendlyPartName(partName)}
                       </option>
                     ))}
                   </select>
