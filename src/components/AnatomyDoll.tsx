@@ -12,6 +12,24 @@ interface AnatomyDollProps {
   onClose: () => void;
 }
 
+const isRootBone = (object: any) => {
+  if (!object) return false;
+  if (!object.isBone) return true;
+  return !object.parent || !object.parent.isBone;
+};
+
+const canTranslateObject = (object: any, gltfModelScene: any) => {
+  if (!object || !gltfModelScene) return true;
+  if (object.isBone) {
+    return !object.parent || !object.parent.isBone;
+  }
+  // If it's a nested submesh (where parent is not the root scene group), lock translation to keep it attached to the puppet body
+  if (object.parent && object.parent !== gltfModelScene) {
+    return false;
+  }
+  return true;
+};
+
 const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -111,12 +129,12 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
         node.castShadow = true;
         node.receiveShadow = true;
         
-        // Warm timber drawing model color theme matching guidelines
+        // Premium matte drawing model theme
         if (!node.material || (Array.isArray(node.material) && node.material.length === 0)) {
           node.material = new THREE.MeshStandardMaterial({
-            color: "#dfc8a5",
-            roughness: 0.35,
-            metalness: 0.05,
+            color: "#e2e8f0",
+            roughness: 0.65,
+            metalness: 0.1,
             side: THREE.DoubleSide
           });
         } else {
@@ -124,7 +142,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
           mats.forEach((mat: any) => {
             mat.side = THREE.DoubleSide;
             if (mat.color && (mat.color.getHex() === 0xffffff || mat.color.getHex() === 0xcccccc)) {
-              mat.color.set("#dfc8a5");
+              mat.color.set("#e2e8f0");
             }
           });
         }
@@ -244,7 +262,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   };
 
   const updateGltfTranslation = (axis: number, value: number) => {
-    if (!selectedPart || !gltfModel) return;
+    if (!selectedPart || !gltfModel || !selectedObject) return;
+    if (!canTranslateObject(selectedObject, gltfModel.scene)) return;
     const obj = gltfModel.scene.getObjectByName(selectedPart);
     if (obj) {
       obj.position.setComponent(axis, value);
@@ -282,9 +301,21 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     return gltfModel.scene.getObjectByName(selectedPart);
   }, [gltfModel, selectedPart]);
 
+  // Adapt transformation mode automatically when selecting locked joints
+  useEffect(() => {
+    if (selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene) && transformMode === 'translate') {
+      setTransformMode('rotate');
+    }
+  }, [selectedPart, selectedObject, gltfModel, transformMode]);
+
   // Synchronise dragging updates from 3D helper
   const handleGizmoChange = () => {
     if (selectedObject) {
+      if (transformMode === 'translate' && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene)) {
+        const orig = originalPositions[selectedPart] || [0, 0, 0];
+        selectedObject.position.set(orig[0], orig[1], orig[2]);
+        return;
+      }
       setGltfRotations(prev => ({
         ...prev,
         [selectedPart]: [selectedObject.rotation.x, selectedObject.rotation.y, selectedObject.rotation.z]
@@ -394,8 +425,28 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         let current = e.object;
-                        if (current && current.name) {
-                          setSelectedPart(current.name);
+                        if (current) {
+                          // Find nearest bone if rigged/skinned mesh to make bones targetable
+                          if (current.isSkinnedMesh && current.skeleton && current.skeleton.bones.length > 0) {
+                            let nearestBone = null;
+                            let minDist = Infinity;
+                            current.skeleton.bones.forEach((bone: any) => {
+                              const bonePos = new THREE.Vector3();
+                              bone.getWorldPosition(bonePos);
+                              const dist = e.point.distanceTo(bonePos);
+                              if (dist < minDist) {
+                                minDist = dist;
+                                nearestBone = bone;
+                              }
+                            });
+                            if (nearestBone) {
+                              setSelectedPart((nearestBone as any).name);
+                              return;
+                            }
+                          }
+                          if (current.name) {
+                            setSelectedPart(current.name);
+                          }
                         }
                       }}
                     />
@@ -523,12 +574,18 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                   </button>
                   <button
                     type="button"
+                    disabled={selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene)}
                     onClick={() => setTransformMode('translate')}
-                    className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'translate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
+                    className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'translate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'} disabled:opacity-30 disabled:cursor-not-allowed`}
                   >
                     <Move size={12} /> Translate
                   </button>
                 </div>
+                {selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene) && (
+                  <p className="text-[10px] text-orange-500 font-bold uppercase mt-1.5 bg-orange-50 border border-orange-100 p-2 rounded-xl">
+                    ⚠️ Joint can only be rotated to keep the mannequin connected!
+                  </p>
+                )}
               </div>
 
               {/* Interactive sliders based on transform mode */}
