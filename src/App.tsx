@@ -394,7 +394,11 @@ export default function App() {
       };
     });
 
-    return [...enrichedDb, ...enrichedCustom];
+    return [...enrichedDb, ...enrichedCustom].filter(t => {
+      const isHello = t.title.toLowerCase().includes('hello');
+      const isPro = t.level?.toLowerCase() === 'pro' || t.difficulty?.toLowerCase() === 'pro';
+      return !(isHello && isPro);
+    });
   })();
 
   const filteredTutorials = allTutorials.filter(t => {
@@ -518,26 +522,6 @@ export default function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl">
-            {/* Elegant Add Custom card inside the levels grid */}
-            <motion.button
-              whileHover={{ scale: 1.05, rotate: 1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setSavingPoseUrl('');
-                setNewTutorialLevel(selectedLevel || 'Beginner');
-                setIsAddingManually(true);
-              }}
-              className="group relative bg-sky-50 border-8 border-dashed border-navy/40 rounded-[3rem] overflow-hidden hover:border-navy hover:bg-sky-100 transition-all text-left flex flex-col justify-center items-center p-12 min-h-[400px] cursor-pointer"
-            >
-              <div className="w-20 h-20 bg-amber-400 border-4 border-navy rounded-2xl flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,128,1)]">
-                <Palette size={40} className="text-navy" strokeWidth={3} />
-              </div>
-              <h3 className="text-3xl font-black text-navy text-center mb-2 uppercase tracking-tight">ADD NEW POSE</h3>
-              <p className="text-base text-navy/60 font-bold uppercase text-center max-w-[240px]">
-                Link a reference picture or sketch from your storage!
-              </p>
-            </motion.button>
-
             {error ? (
               <div className="col-span-full text-center p-20 border-8 border-dashed border-red-600/20 rounded-[3rem] bg-red-50">
                 <p className="text-4xl font-bold text-red-600">FETCH ERROR! ⚠️</p>
@@ -801,215 +785,6 @@ export default function App() {
                       ) : (
                         <>
                           <Check size={14} strokeWidth={3} /> Save Pose
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Add Pose Reference manually */}
-      <AnimatePresence>
-        {isAddingManually && (
-          <div className="fixed inset-0 z-[200] bg-navy/80 backdrop-blur-sm flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white border-8 border-navy p-8 md:p-12 rounded-[2.5rem] shadow-[15px_15px_0px_0px_rgba(251,191,36,1)] max-w-lg w-full text-center space-y-6 relative"
-            >
-              <button 
-                onClick={() => {
-                  if (isSaving) return;
-                  setIsAddingManually(false);
-                  setSavingPoseUrl(null);
-                  setNewTutorialTitle('');
-                  setNewTutorialDesc('');
-                }}
-                disabled={isSaving}
-                className="absolute top-4 right-4 p-2 bg-navy text-white rounded-full hover:rotate-90 transition-transform cursor-pointer disabled:opacity-50"
-              >
-                <X size={20} strokeWidth={3} />
-              </button>
-
-              <div className="w-16 h-16 bg-amber-400 border-4 border-navy rounded-2xl flex items-center justify-center mx-auto rotate-3 shadow-md">
-                <Palette size={32} className="text-navy" strokeWidth={3} />
-              </div>
-
-              <h3 className="text-3xl font-black text-navy uppercase tracking-tight">
-                Add Pose Reference!
-              </h3>
-
-              <div className="space-y-4 text-left">
-                {/* Visual File Selector/Dropzone */}
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-2">Pose/Reference Image File</label>
-                  
-                  {savingPoseUrl ? (
-                    <div className="relative border-4 border-navy rounded-2xl overflow-hidden aspect-video bg-slate-100 flex items-center justify-center shadow-inner group">
-                      <img src={savingPoseUrl} alt="Preview" className="h-full object-contain" />
-                      <div className="absolute inset-0 bg-navy/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          disabled={isSaving}
-                          onClick={() => setSavingPoseUrl(null)}
-                          className="px-4 py-2 bg-red-500 hover:bg-red-600 border-2 border-navy rounded-xl text-white font-bold text-xs uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-50"
-                        >
-                          Remove
-                        </button>
-                        <label className="px-4 py-2 bg-sky-400 hover:bg-sky-500 border-2 border-navy rounded-xl text-navy font-bold text-xs uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-50">
-                          Change File
-                          <input 
-                            type="file" 
-                            accept="image/*"
-                            disabled={isSaving}
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  if (event.target?.result) {
-                                    setSavingPoseUrl(event.target.result as string);
-                                  }
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ) : (
-                    <div 
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (!isSaving) setIsDragging(true);
-                      }}
-                      onDragLeave={() => setIsDragging(false)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setIsDragging(false);
-                        if (isSaving) return;
-                        const file = e.dataTransfer.files?.[0];
-                        if (file && file.type.startsWith('image/')) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            if (event.target?.result) {
-                              setSavingPoseUrl(event.target.result as string);
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className={`border-4 border-dashed rounded-2xl py-8 px-6 flex flex-col items-center justify-center cursor-pointer transition-all text-center aspect-video ${
-                        isDragging 
-                          ? 'border-amber-400 bg-amber-50 shadow-[0_0_15px_rgba(251,191,36,0.2)] scale-[0.99]' 
-                          : 'border-navy bg-slate-50 hover:bg-slate-100'
-                      }`}
-                    >
-                      <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
-                        <UploadCloud size={40} className="text-navy opacity-60 mb-2" strokeWidth={2.5} />
-                        <span className="text-xs font-black text-navy uppercase tracking-wider block">
-                          Drag & Drop Reference Here
-                        </span>
-                        <span className="text-[10px] font-bold text-navy opacity-50 uppercase tracking-wide block mt-1">
-                          or Click to Select Any Image File
-                        </span>
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          disabled={isSaving}
-                          className="hidden" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                if (event.target?.result) {
-                                  setSavingPoseUrl(event.target.result as string);
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Pose Name</label>
-                  <input 
-                    type="text" 
-                    placeholder="E.g., Dynamic Jump, Sitting Bench" 
-                    value={newTutorialTitle}
-                    onChange={(e) => setNewTutorialTitle(e.target.value)}
-                    disabled={isSaving}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 disabled:opacity-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Anatomical Focus / Notes</label>
-                  <textarea 
-                    placeholder="E.g., Highlight action lines, twisting waist and shoulders." 
-                    value={newTutorialDesc}
-                    onChange={(e) => setNewTutorialDesc(e.target.value)}
-                    disabled={isSaving}
-                    rows={2}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 resize-none disabled:opacity-50"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Target Level</label>
-                    <select
-                      value={newTutorialLevel}
-                      onChange={(e) => setNewTutorialLevel(e.target.value)}
-                      disabled={isSaving}
-                      className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 disabled:opacity-50"
-                    >
-                      <option value="Beginner">Beginner</option>
-                      <option value="Average">Average</option>
-                      <option value="Pro">Pro</option>
-                      <option value="3D Doll">3D Doll</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newTutorialTitle.trim() || !savingPoseUrl || isSaving) return;
-                        await handleSaveNewTutorial(
-                          newTutorialTitle,
-                          newTutorialDesc,
-                          newTutorialLevel,
-                          savingPoseUrl,
-                          true
-                        );
-                        setIsAddingManually(false);
-                        setSavingPoseUrl(null);
-                        setNewTutorialTitle('');
-                        setNewTutorialDesc('');
-                      }}
-                      disabled={!newTutorialTitle.trim() || !savingPoseUrl || isSaving}
-                      className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-navy border-4 border-navy font-black text-xs uppercase tracking-wider rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      {isSaving ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Check size={14} strokeWidth={3} /> Save Reference
                         </>
                       )}
                     </button>
