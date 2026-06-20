@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, ZoomIn, ZoomOut, RotateCcw, Camera, Sparkles, Box, Trash2, Check, UploadCloud } from 'lucide-react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, Moon, ZoomIn, ZoomOut, RotateCcw, Camera, Sparkles, Box, Trash2, Check, UploadCloud } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import SketchCanvas from './components/SketchCanvas';
@@ -147,6 +147,21 @@ export default function App() {
   const [isAddingManually, setIsAddingManually] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark');
+      document.documentElement.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   useEffect(() => {
     fetchTutorials();
@@ -310,15 +325,15 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-16 h-16 border-8 border-navy border-t-transparent rounded-full animate-spin"></div>
+      <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-white'}`}>
+        <div className={`w-16 h-16 border-8 border-t-transparent rounded-full animate-spin ${isDarkMode ? 'border-sky-400' : 'border-navy'}`}></div>
       </div>
     );
   }
 
   if (!selectedLevel) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-sky-50 p-6 relative overflow-hidden">
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-sky-50 text-navy'}`}>
         {/* Decorative background for the question screen */}
         <div className="absolute inset-0 pointer-events-none opacity-10">
           <div className="absolute top-10 left-10"><Pencil size={120} className="rotate-12" /></div>
@@ -328,16 +343,22 @@ export default function App() {
         <motion.div 
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white border-8 border-navy p-12 md:p-20 rounded-[3rem] shadow-[20px_20px_0px_0px_rgba(0,0,128,1)] text-center relative z-10 max-w-4xl w-full"
+          className={`p-12 md:p-20 rounded-[3rem] text-center relative z-10 max-w-4xl w-full border-8 transition-all duration-300 ${
+            isDarkMode 
+              ? 'bg-slate-900 border-slate-800 shadow-[20px_20px_0px_0px_rgba(56,189,248,0.2)]' 
+              : 'bg-white border-navy shadow-[20px_20px_0px_0px_rgba(0,0,128,1)]'
+          }`}
         >
-          <div className="w-24 h-24 bg-sky-400 border-8 border-navy rounded-3xl flex items-center justify-center mx-auto mb-10 -rotate-6 shadow-xl">
-            <User size={48} className="text-navy" strokeWidth={3} />
+          <div className={`w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-10 -rotate-6 shadow-xl border-8 transition-colors duration-300 ${
+            isDarkMode ? 'bg-sky-450 border-slate-800 text-slate-900' : 'bg-sky-400 border-navy text-navy'
+          }`}>
+            <User size={48} className={isDarkMode ? 'text-slate-950' : 'text-navy'} strokeWidth={3} />
           </div>
           
-          <h2 className="text-5xl md:text-7xl font-black text-navy mb-4 tracking-tighter uppercase leading-none">
+          <h2 className={`text-5xl md:text-7xl font-black mb-4 tracking-tighter uppercase leading-none transition-colors duration-300 ${isDarkMode ? 'text-slate-100' : 'text-navy'}`}>
             Welcome Artist!
           </h2>
-          <p className="text-2xl md:text-3xl font-bold text-navy/60 mb-12 italic">
+          <p className={`text-2xl md:text-3xl font-bold mb-12 italic transition-colors duration-300 ${isDarkMode ? 'text-slate-400' : 'text-navy/60'}`}>
             "What level would you like to be?"
           </p>
 
@@ -353,15 +374,34 @@ export default function App() {
                 whileHover={{ scale: 1.05, rotate: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setSelectedLevel(level.id)}
-                className="group flex flex-col items-center p-8 bg-white border-4 border-navy rounded-[2.5rem] hover:bg-sky-50 transition-colors shadow-[8px_8px_0px_0px_rgba(0,0,128,1)]"
+                className={`group flex flex-col items-center p-8 border-4 rounded-[2.5rem] transition-all cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-705 shadow-[8px_8px_0px_0px_rgba(56,189,248,0.15)]' 
+                    : 'bg-white border-navy text-navy hover:bg-sky-50 shadow-[8px_8px_0px_0px_rgba(0,0,128,1)]'
+                }`}
               >
-                <div className={`w-16 h-16 ${level.color} border-4 border-navy rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform`}>
-                  <level.icon size={32} fill="navy" className="text-navy" />
+                <div className={`w-16 h-16 ${level.color} border-4 rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform ${isDarkMode ? 'border-slate-800' : 'border-navy'}`}>
+                  <level.icon size={32} fill={isDarkMode ? '#0f172a' : 'navy'} className={isDarkMode ? 'text-slate-900' : 'text-navy'} />
                 </div>
-                <span className="text-3xl font-black text-navy mb-2 uppercase">{level.id}</span>
-                <span className="text-sm font-bold opacity-40 uppercase tracking-widest text-center">{level.desc}</span>
+                <span className="text-3xl font-black mb-2 uppercase">{level.id}</span>
+                <span className={`text-sm font-bold uppercase tracking-widest text-center transition-colors duration-300 ${isDarkMode ? 'text-slate-400' : 'opacity-40 text-navy'}`}>{level.desc}</span>
               </motion.button>
             ))}
+          </div>
+
+          {/* Quick theme toggler button within the box */}
+          <div className="mt-12 flex justify-center">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`flex items-center gap-2 px-6 py-3 rounded-2xl border-4 font-black uppercase tracking-wider text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer ${
+                isDarkMode 
+                  ? 'bg-slate-800 border-slate-700 text-sky-450 hover:bg-slate-700' 
+                  : 'bg-sky-100 border-navy text-navy hover:bg-sky-200'
+              }`}
+            >
+              {isDarkMode ? <Sun size={14} className="text-yellow-400 animate-pulse" /> : <Moon size={14} className="text-blue-800" />}
+              <span>{isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+            </button>
           </div>
         </motion.div>
       </div>
@@ -408,9 +448,15 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col selection:bg-navy selection:text-white overflow-x-hidden">
+    <div className={`min-h-screen flex flex-col overflow-x-hidden transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-slate-950 text-slate-100 selection:bg-slate-100 selection:text-slate-900' 
+        : 'bg-white text-navy selection:bg-navy selection:text-white'
+    }`}>
       {/* Background Doodles (Cartoon Fun) */}
-      <div className="fixed inset-0 pointer-events-none opacity-5 z-0 overflow-hidden">
+      <div className={`fixed inset-0 pointer-events-none z-0 overflow-hidden transition-all duration-300 ${
+        isDarkMode ? 'text-slate-150 opacity-[0.03]' : 'text-navy opacity-5'
+      }`}>
         <div className="absolute top-20 left-10 rotate-12"><Building2 size={120} /></div>
         <div className="absolute bottom-20 right-10 -rotate-12"><TreeDeciduous size={150} /></div>
         <div className="absolute top-1/2 left-1/4 -rotate-6"><User size={100} /></div>
@@ -432,36 +478,57 @@ export default function App() {
       </div>
 
       {/* Navigation */}
-      <nav className="p-6 flex justify-between items-center bg-white border-b-8 border-navy sticky top-0 z-50">
+      <nav className={`p-6 flex justify-between items-center border-b-8 sticky top-0 z-50 transition-colors duration-300 ${
+        isDarkMode ? 'bg-slate-900 border-b-8 border-slate-800' : 'bg-white border-b-8 border-navy'
+      }`}>
         <div className="flex items-center gap-2">
           <motion.div 
             animate={{ rotate: [3, -3, 3] }}
             transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            className="w-12 h-12 border-4 border-navy rounded-xl flex items-center justify-center bg-sky-400"
+            className={`w-12 h-12 border-4 rounded-xl flex items-center justify-center bg-sky-400 transition-colors duration-300 ${
+              isDarkMode ? 'border-slate-800' : 'border-navy'
+            }`}
           >
-            <User size={28} strokeWidth={3} />
+            <User size={28} strokeWidth={3} className={isDarkMode ? 'text-slate-950' : 'text-navy'} />
           </motion.div>
           <span className="text-4xl font-bold tracking-tighter">SKETCH SEARCH</span>
         </div>
 
         {selectedLevel && (
           <div className="flex items-center gap-4">
-            <span className="hidden md:block font-black text-navy opacity-40 uppercase tracking-widest text-xs">Level</span>
-            <div className="flex gap-2 bg-navy/5 p-2 rounded-2xl border-4 border-navy/10 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+            <span className={`hidden md:block font-black uppercase tracking-widest text-xs transition-colors duration-300 ${
+              isDarkMode ? 'text-slate-400' : 'text-navy opacity-40'
+            }`}>Level</span>
+            <div className={`flex gap-2 p-2 rounded-2xl border-4 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar transition-colors duration-300 ${
+              isDarkMode ? 'bg-slate-800 border-slate-705' : 'bg-navy/5 border-navy/10'
+            }`}>
               {['Beginner', 'Average', 'Pro', '3D Doll'].map((level) => (
                 <button
                   key={level}
                   onClick={() => setSelectedLevel(level)}
-                  className={`px-4 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
+                  className={`px-4 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
                     selectedLevel === level 
-                      ? 'bg-navy text-white shadow-lg' 
-                      : 'hover:bg-navy/10 text-navy/60'
+                      ? (isDarkMode ? 'bg-sky-450 text-slate-950 shadow-lg font-black' : 'bg-navy text-white shadow-lg') 
+                      : (isDarkMode ? 'hover:bg-slate-700 text-slate-350' : 'hover:bg-navy/10 text-navy/60')
                   }`}
                 >
                   {level.toUpperCase()}
                 </button>
               ))}
             </div>
+
+            {/* Quick header Theme Toggler Button */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`p-3 border-4 rounded-xl transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer ${
+                isDarkMode 
+                  ? 'bg-slate-800 border-slate-705 text-yellow-400 hover:bg-slate-700' 
+                  : 'bg-sky-100 border-navy text-navy hover:bg-sky-200'
+              }`}
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDarkMode ? <Sun size={20} className="text-yellow-400 animate-spin-slow" /> : <Moon size={20} className="text-blue-800" />}
+            </button>
           </div>
         )}
       </nav>
@@ -477,7 +544,11 @@ export default function App() {
         >
           <h1 className="text-7xl md:text-9xl font-bold mb-6 leading-none tracking-tighter">
             MASTER THE <br />
-            <span className="bg-navy text-white px-8 py-2 inline-block -rotate-2 rounded-3xl shadow-[10px_10px_0px_0px_rgba(56,189,248,1)]">HUMAN BODY</span>
+            <span className={`px-8 py-2 inline-block -rotate-2 rounded-3xl transition-all duration-305 ${
+              isDarkMode 
+                ? 'bg-slate-800 text-sky-450 border-4 border-slate-705 shadow-[10px_10px_0px_0px_rgba(56,189,248,0.25)]' 
+                : 'bg-navy text-white shadow-[10px_10px_0px_0px_rgba(56,189,248,1)]'
+            }`}>HUMAN BODY</span>
           </h1>
           <p className="text-2xl md:text-3xl font-bold opacity-80 max-w-3xl mx-auto mt-8">
             Pick a pose and start sketching! Our cartoon-style tutorials will guide you through every muscle and bone.
@@ -490,20 +561,32 @@ export default function App() {
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white border-8 border-navy p-12 md:p-20 rounded-[3rem] shadow-[20px_20px_0px_0px_rgba(79,70,229,1)] text-center"
+              className={`p-12 md:p-20 border-8 rounded-[3rem] text-center transition-all duration-300 ${
+                isDarkMode 
+                  ? 'bg-slate-900 border-slate-800 text-slate-100 shadow-[20px_20px_0px_0px_rgba(56,189,248,0.2)]'
+                  : 'bg-white border-navy shadow-[20px_20px_0px_0px_rgba(79,70,229,1)]'
+              }`}
             >
-              <div className="w-24 h-24 bg-indigo-400 border-8 border-navy rounded-3xl flex items-center justify-center mx-auto mb-10 rotate-3 shadow-xl">
-                <Box size={48} className="text-navy" strokeWidth={3} />
+              <div className={`w-24 h-24 border-8 rounded-3xl flex items-center justify-center mx-auto mb-10 rotate-3 shadow-xl transition-colors duration-300 ${
+                isDarkMode ? 'bg-indigo-400 border-slate-800' : 'bg-indigo-400 border-navy'
+              }`}>
+                <Box size={48} className={isDarkMode ? 'text-slate-950' : 'text-navy'} strokeWidth={3} />
               </div>
-              <h2 className="text-5xl md:text-6xl font-black text-navy mb-6 tracking-tighter uppercase leading-none">
+              <h2 className={`text-5xl md:text-6xl font-black mb-6 tracking-tighter uppercase leading-none transition-colors duration-300 ${isDarkMode ? 'text-slate-100' : 'text-navy'}`}>
                 3D ANATOMY DOLL
               </h2>
-              <p className="text-xl md:text-2xl font-bold text-navy/70 mb-12 max-w-2xl mx-auto">
+              <p className={`text-xl md:text-2xl font-bold mb-12 max-w-2xl mx-auto transition-colors duration-300 ${
+                isDarkMode ? 'text-slate-400' : 'text-navy/70'
+              }`}>
                 Pose the mannequin however you like! Create your own target for a sketch study.
               </p>
               <button 
                 onClick={() => setIsCapturingPose(true)}
-                className="group flex items-center gap-4 px-12 py-6 bg-navy text-white rounded-[2.5rem] font-black uppercase tracking-widest text-2xl shadow-[10px_10px_0px_0px_rgba(56,189,248,1)] hover:shadow-none hover:translate-x-2 hover:translate-y-2 transition-all mx-auto"
+                className={`group flex items-center gap-4 px-12 py-6 border-4 rounded-[2.5rem] font-black uppercase tracking-widest text-2xl transition-all mx-auto duration-300 cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-sky-400 text-slate-950 border-slate-800 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-2 hover:translate-y-2' 
+                    : 'bg-navy text-white border-navy shadow-[10px_10px_0px_0px_rgba(56,189,248,1)] hover:shadow-none hover:translate-x-2 hover:translate-y-2'
+                }`}
               >
                 <Sparkles size={32} className="group-hover:rotate-12 transition-transform" />
                 Open 3D Studio
@@ -536,10 +619,14 @@ export default function App() {
                   whileHover={{ scale: 1.05, rotate: -1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setSelectedTutorial(tutorial)}
-                  className="group relative bg-white border-8 border-navy rounded-[3rem] overflow-hidden shadow-[15px_15px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-2 hover:translate-y-2 transition-all text-left flex flex-col justify-between cursor-pointer h-full w-full"
+                  className={`group relative border-8 rounded-[3rem] overflow-hidden hover:shadow-none hover:translate-x-2 hover:translate-y-2 transition-all text-left flex flex-col justify-between cursor-pointer h-full w-full ${
+                    isDarkMode 
+                      ? 'bg-slate-900 border-slate-800 shadow-[15px_15px_0px_0px_rgba(255,255,255,0.15)] text-slate-100' 
+                      : 'bg-white border-navy shadow-[15px_15px_0px_0px_rgba(0,0,128,1)] text-navy'
+                  }`}
                 >
                   <div className="w-full">
-                    <div className="aspect-square bg-navy/5 border-b-8 border-navy relative overflow-hidden">
+                    <div className={`aspect-square border-b-8 relative overflow-hidden transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-navy/5 border-navy'}`}>
                       <img 
                         src={tutorial.image_url || `https://picsum.photos/seed/${tutorial.id}/600/600`} 
                         alt={tutorial.title}
@@ -549,7 +636,9 @@ export default function App() {
                     </div>
                     <div className="p-8">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 border-navy ${
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 ${
+                          isDarkMode ? 'border-slate-800 text-slate-950' : 'border-navy'
+                        } ${
                           (tutorial.level || tutorial.difficulty)?.toLowerCase() === 'beginner' ? 'bg-green-400' :
                           (tutorial.level || tutorial.difficulty)?.toLowerCase() === 'average' ? 'bg-sky-400' :
                           'bg-orange-400'
@@ -558,12 +647,12 @@ export default function App() {
                         </span>
                       </div>
                       <h3 className="text-3xl font-bold mb-2 uppercase tracking-tight">{tutorial.title}</h3>
-                      <p className="text-xl opacity-70 line-clamp-2 font-medium">{tutorial.description}</p>
+                      <p className={`text-xl line-clamp-2 font-medium transition-colors duration-300 ${isDarkMode ? 'text-slate-400' : 'opacity-70 text-navy/70'}`}>{tutorial.description}</p>
                     </div>
                   </div>
                   
                   <div className="p-8 pt-0 w-full">
-                    <div className="mt-2 flex items-center gap-2 text-navy font-bold text-xl">
+                    <div className={`mt-2 flex items-center gap-2 font-bold text-xl transition-colors duration-300 ${isDarkMode ? 'text-sky-450' : 'text-navy'}`}>
                       <span>START SKETCHING</span>
                       <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1 }}>
                         <Search size={24} strokeWidth={3} />
@@ -595,7 +684,9 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-sky-50 overflow-y-auto"
+            className={`fixed inset-0 z-[100] overflow-y-auto transition-colors duration-300 ${
+              isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-sky-50 text-navy'
+            }`}
           >
             <div className="min-h-screen p-6 md:p-12 relative">
               <button 
@@ -603,18 +694,24 @@ export default function App() {
                   setSelectedTutorial(null);
                   setZoomLevel(1);
                 }}
-                className="absolute top-8 right-8 p-4 bg-navy text-white rounded-full hover:rotate-90 transition-transform z-50 shadow-[5px_5px_0px_0px_rgba(56,189,248,1)]"
+                className={`absolute top-8 right-8 p-4 rounded-full hover:rotate-90 transition-transform z-50 border-4 focus:outline-none cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-slate-800 text-white border-slate-705 shadow-[5px_5px_0px_0px_rgba(56,189,248,0.25)]' 
+                    : 'bg-navy text-white border-navy shadow-[5px_5px_0px_0px_rgba(56,189,248,1)]'
+                }`}
               >
                 <X size={40} strokeWidth={4} />
               </button>
 
               <div className="max-w-[1600px] mx-auto">
                 <div className="mb-12">
-                  <div className="inline-block bg-sky-400 border-4 border-navy px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2">
+                  <div className={`inline-block border-4 px-6 py-2 rounded-2xl font-bold text-2xl mb-6 -rotate-2 ${
+                    isDarkMode ? 'bg-slate-800 text-sky-400 border-slate-705' : 'bg-sky-400 text-navy border-navy'
+                  }`}>
                     {selectedTutorial.category || 'POSE STUDY'}
                   </div>
                   <h2 className="text-6xl md:text-8xl font-bold mb-4 uppercase tracking-tighter leading-none">{selectedTutorial.title}</h2>
-                  <p className="text-2xl opacity-80 font-medium leading-relaxed max-w-4xl">
+                  <p className={`text-2xl font-medium leading-relaxed max-w-4xl transition-colors duration-300 ${isDarkMode ? 'text-slate-350' : 'opacity-80'}`}>
                     {selectedTutorial.description}
                   </p>
                 </div>
@@ -623,28 +720,38 @@ export default function App() {
                   {/* Left Column: Reference Pose */}
                   <div className="lg:col-span-4 space-y-8">
                     <h3 className="text-3xl font-bold uppercase tracking-tight flex items-center gap-4">
-                      <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
+                      <div className={`w-8 h-8 border-4 rounded-lg bg-sky-400 ${isDarkMode ? 'border-slate-800' : 'border-navy'}`} />
                       Reference Pose
                     </h3>
-                    <div className="w-full h-[600px] overflow-auto border-8 border-navy rounded-[3rem] bg-navy/5 shadow-[15px_15px_0px_0px_rgba(0,0,128,1)] relative group">
+                    <div className={`w-full h-[600px] overflow-auto border-8 rounded-[3rem] relative group transition-all duration-300 ${
+                      isDarkMode 
+                        ? 'bg-slate-900 border-slate-800 shadow-[15px_15px_0px_0px_rgba(255,255,255,0.15)] bg-slate-900/50' 
+                        : 'bg-navy/5 border-navy shadow-[15px_15px_0px_0px_rgba(0,0,128,1)]'
+                    }`}>
                       <div className="absolute top-6 right-6 flex flex-col gap-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => setZoomLevel(prev => Math.min(prev + 0.2, 3))}
-                          className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm"
+                          className={`p-3 border-4 rounded-xl shadow-sm cursor-pointer ${
+                            isDarkMode ? 'bg-slate-800 border-slate-705 text-white hover:bg-slate-700' : 'bg-white border-navy text-navy hover:bg-sky-100'
+                          }`}
                           title="Zoom In"
                         >
                           <ZoomIn size={24} strokeWidth={3} />
                         </button>
                         <button 
                           onClick={() => setZoomLevel(prev => Math.max(prev - 0.2, 0.5))}
-                          className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm"
+                          className={`p-3 border-4 rounded-xl shadow-sm cursor-pointer ${
+                            isDarkMode ? 'bg-slate-800 border-slate-705 text-white hover:bg-slate-700' : 'bg-white border-navy text-navy hover:bg-sky-100'
+                          }`}
                           title="Zoom Out"
                         >
                           <ZoomOut size={24} strokeWidth={3} />
                         </button>
                         <button 
                           onClick={() => setZoomLevel(1)}
-                          className="p-3 bg-white border-4 border-navy rounded-xl hover:bg-sky-100 transition-colors shadow-sm"
+                          className={`p-3 border-4 rounded-xl shadow-sm cursor-pointer ${
+                            isDarkMode ? 'bg-slate-800 border-slate-705 text-white hover:bg-slate-700' : 'bg-white border-navy text-navy hover:bg-sky-100'
+                          }`}
                           title="Reset Zoom"
                         >
                           <RotateCcw size={24} strokeWidth={3} />
@@ -661,7 +768,7 @@ export default function App() {
                           <img 
                             src={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/1200/1200`} 
                             alt={selectedTutorial.title}
-                            className="w-full h-auto object-contain rounded-2xl"
+                            className="w-full h-auto object-contain rounded-2xl animate-sketch"
                             referrerPolicy="no-referrer"
                           />
                         </motion.div>
@@ -672,7 +779,7 @@ export default function App() {
                   {/* Right Column: Sketch Canvas */}
                   <div className="lg:col-span-8 space-y-8">
                     <h3 className="text-3xl font-bold uppercase tracking-tight flex items-center gap-4">
-                      <div className="w-8 h-8 border-4 border-navy rounded-lg bg-sky-400" />
+                      <div className={`w-8 h-8 border-4 rounded-lg bg-sky-450 ${isDarkMode ? 'border-slate-800' : 'border-navy'}`} />
                       Your Canvas
                     </h3>
                     <div className="w-full flex justify-center">
@@ -681,6 +788,7 @@ export default function App() {
                         tutorialDescription={selectedTutorial.description} 
                         imageUrl={selectedTutorial.image_url || `https://picsum.photos/seed/${selectedTutorial.id}/1200/1200`}
                         tutorialLevel={selectedTutorial.level || selectedTutorial.difficulty}
+                        isDarkMode={isDarkMode}
                       />
                     </div>
                   </div>
@@ -694,70 +802,86 @@ export default function App() {
       {/* Save Custom Pose Modal */}
       <AnimatePresence>
         {savingPoseUrl && !isAddingManually && (
-          <div className="fixed inset-0 z-[200] bg-navy/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[200] bg-navy/80 backdrop-blur-sm flex items-center justify-center p-6 transition-all duration-300">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white border-8 border-navy p-8 md:p-12 rounded-[2.5rem] shadow-[15px_15px_0px_0px_rgba(56,189,248,1)] max-w-lg w-full text-center space-y-6 relative"
+              className={`border-8 p-8 md:p-12 rounded-[2.5rem] max-w-lg w-full text-center space-y-6 relative transition-colors duration-300 ${
+                isDarkMode 
+                  ? 'bg-slate-900 border-slate-805 text-slate-100 shadow-[15px_15px_0px_0px_rgba(56,189,248,0.25)]' 
+                  : 'bg-white border-navy text-navy shadow-[15px_15px_0px_0px_rgba(56,189,248,1)]'
+              }`}
             >
               <button 
                 onClick={() => setSavingPoseUrl(null)}
-                className="absolute top-4 right-4 p-2 bg-navy text-white rounded-full hover:rotate-90 transition-transform cursor-pointer"
+                className={`absolute top-4 right-4 p-2 rounded-full hover:rotate-90 transition-transform cursor-pointer border-2 ${
+                  isDarkMode ? 'bg-slate-800 border-slate-705 text-white' : 'bg-navy text-white border-navy'
+                }`}
               >
                 <X size={20} strokeWidth={3} />
               </button>
 
-              <div className="w-16 h-16 bg-green-400 border-4 border-navy rounded-2xl flex items-center justify-center mx-auto -rotate-3 shadow-md">
-                <Camera size={32} className="text-navy" strokeWidth={3} />
+              <div className={`w-16 h-16 bg-green-400 border-4 rounded-2xl flex items-center justify-center mx-auto -rotate-3 shadow-md ${
+                isDarkMode ? 'border-slate-800 text-slate-950' : 'border-navy text-navy'
+              }`}>
+                <Camera size={32} strokeWidth={3} className={isDarkMode ? 'text-slate-950' : 'text-navy'} />
               </div>
 
-              <h3 className="text-3xl font-black text-navy uppercase tracking-tight">
+              <h3 className="text-3xl font-black uppercase tracking-tight">
                 Save Your 3D Pose!
               </h3>
               
-              <div className="w-full aspect-video bg-slate-100 border-4 border-navy rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+              <div className={`w-full aspect-video border-4 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center transition-colors duration-300 ${
+                isDarkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-100 border-navy'
+              }`}>
                 <img src={savingPoseUrl || ''} alt="Captured Pose" className="h-full object-contain" />
               </div>
 
               <div className="space-y-4 text-left">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Pose Name</label>
+                  <label className="block text-xs font-black uppercase tracking-wider opacity-60 mb-1">Pose Name</label>
                   <input 
                     type="text" 
                     placeholder="E.g., Flying Kick, Sleeping Cat" 
                     value={newTutorialTitle}
                     onChange={(e) => setNewTutorialTitle(e.target.value)}
                     disabled={isSaving}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:opacity-50"
+                    className={`w-full px-4 py-3 border-4 rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:opacity-50 ${
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-400 focus:ring-slate-700/55' : 'bg-slate-50 border-navy'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Anatomical Focus / Notes</label>
+                  <label className="block text-xs font-black uppercase tracking-wider opacity-60 mb-1">Anatomical Focus / Notes</label>
                   <textarea 
                     placeholder="E.g., Focus on weight distribution and spine curve." 
                     value={newTutorialDesc}
                     onChange={(e) => setNewTutorialDesc(e.target.value)}
                     disabled={isSaving}
                     rows={2}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 resize-none disabled:opacity-50"
+                    className={`w-full px-4 py-3 border-4 rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 resize-none disabled:opacity-50 ${
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-400 focus:ring-slate-700/55' : 'bg-slate-55 border-navy'
+                    }`}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Level / Category</label>
+                    <label className="block text-xs font-black uppercase tracking-wider opacity-60 mb-1">Level / Category</label>
                     <select
                       value={newTutorialLevel}
                       onChange={(e) => setNewTutorialLevel(e.target.value)}
                       disabled={isSaving}
-                      className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:opacity-50"
+                      className={`w-full px-4 py-3 border-4 rounded-xl font-bold uppercase focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:opacity-50 ${
+                        isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:ring-slate-700/55' : 'bg-slate-50 border-navy text-navy'
+                      }`}
                     >
-                      <option value="Beginner">Beginner</option>
-                      <option value="Average">Average</option>
-                      <option value="Pro">Pro</option>
-                      <option value="3D Doll">3D Doll</option>
+                      <option value="Beginner" className={isDarkMode ? 'bg-slate-800' : ''}>Beginner</option>
+                      <option value="Average" className={isDarkMode ? 'bg-slate-800' : ''}>Average</option>
+                      <option value="Pro" className={isDarkMode ? 'bg-slate-800' : ''}>Pro</option>
+                      <option value="3D Doll" className={isDarkMode ? 'bg-slate-800' : ''}>3D Doll</option>
                     </select>
                   </div>
                   <div className="flex items-end">
@@ -778,7 +902,9 @@ export default function App() {
                         setNewTutorialDesc('');
                       }}
                       disabled={!newTutorialTitle.trim() || isSaving}
-                      className="w-full py-3.5 bg-green-400 hover:bg-green-500 disabled:opacity-50 text-navy border-4 border-navy font-black text-xs uppercase tracking-wider rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      className={`w-full py-3.5 hover:bg-green-500 disabled:opacity-50 font-black text-xs uppercase tracking-wider rounded-xl hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                        isDarkMode ? 'bg-green-400 text-slate-900 border-4 border-slate-705 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.08)] bg-emerald-450 hover:bg-emerald-400' : 'bg-green-400 text-navy border-4 border-navy shadow-[4px_4px_0px_0px_rgba(0,0,128,1)]'
+                      }`}
                     >
                       {isSaving ? (
                         <>
@@ -800,31 +926,37 @@ export default function App() {
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="p-12 bg-navy text-white border-t-8 border-white relative z-10">
+      <footer className={`p-12 transition-colors duration-300 relative z-10 ${
+        isDarkMode 
+          ? 'bg-slate-900 text-slate-100 border-t-8 border-slate-850' 
+          : 'bg-navy text-white border-t-8 border-white'
+      }`}>
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
             <div className="text-5xl font-bold mb-6 tracking-tighter">SKETCH SEARCH</div>
-            <p className="text-xl opacity-70 max-w-md font-bold">
+            <p className="text-xl opacity-75 max-w-md font-bold">
               Learn to draw the human body with our fun, sketchy tutorials. No talent required, just a pencil and a dream!
             </p>
           </div>
           <div>
             <h4 className="text-2xl font-bold mb-8 uppercase tracking-widest">Socials</h4>
             <div className="flex gap-8">
-              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400"><Twitter size={32} strokeWidth={3} /></a>
-              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400"><Github size={32} strokeWidth={3} /></a>
-              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400"><Info size={32} strokeWidth={3} /></a>
+              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400 text-current"><Twitter size={32} strokeWidth={3} /></a>
+              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400 text-current"><Github size={32} strokeWidth={3} /></a>
+              <a href="#" className="hover:scale-150 transition-transform hover:text-sky-400 text-current"><Info size={32} strokeWidth={3} /></a>
             </div>
           </div>
           <div>
             <h4 className="text-2xl font-bold mb-8 uppercase tracking-widest">Legal Stuff</h4>
-            <ul className="space-y-4 opacity-70 font-bold text-lg">
-              <li><a href="#" className="hover:opacity-100 hover:text-sky-400">Privacy</a></li>
-              <li><a href="#" className="hover:opacity-100 hover:text-sky-400">Terms</a></li>
+            <ul className="space-y-4 opacity-75 font-bold text-lg">
+              <li><a href="#" className="hover:opacity-100 hover:text-sky-400 text-current">Privacy</a></li>
+              <li><a href="#" className="hover:opacity-100 hover:text-sky-400 text-current">Terms</a></li>
             </ul>
           </div>
         </div>
-        <div className="mt-16 pt-12 border-t-4 border-white/20 text-center opacity-50 font-black text-xl tracking-widest">
+        <div className={`mt-16 pt-12 border-t-4 text-center opacity-50 font-black text-xl tracking-widest ${
+          isDarkMode ? 'border-slate-800' : 'border-white/20'
+        }`}>
           © 2026 SKETCH SEARCH. KEEP SKETCHING!
         </div>
       </footer>

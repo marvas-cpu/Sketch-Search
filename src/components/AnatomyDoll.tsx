@@ -111,11 +111,78 @@ const getPartPriority = (name: string): number => {
 
 const mapDEFToActualBone = (name: string): string => {
   let target = name;
+  
+  const rigifyToMixamo: Record<string, string> = {
+    'DEF-spine': 'Spine',
+    'DEF-spine.001': 'Spine1',
+    'DEF-spine.002': 'Spine2',
+    'DEF-spine.003': 'Spine2',
+    'DEF-neck': 'Neck',
+    'DEF-head': 'Head',
+    'DEF-shoulder.L': 'LeftShoulder',
+    'DEF-upper_arm.L': 'LeftArm',
+    'DEF-forearm.L': 'LeftForeArm',
+    'DEF-hand.L': 'LeftHand',
+    'DEF-shoulder.R': 'RightShoulder',
+    'DEF-upper_arm.R': 'RightArm',
+    'DEF-forearm.R': 'RightForeArm',
+    'DEF-hand.R': 'RightHand',
+    'DEF-thigh.L': 'LeftUpLeg',
+    'DEF-shin.L': 'LeftLeg',
+    'DEF-foot.L': 'LeftFoot',
+    'DEF-thigh.R': 'RightUpLeg',
+    'DEF-shin.R': 'RightLeg',
+    'DEF-foot.R': 'RightFoot'
+  };
+
+  if (rigifyToMixamo[target]) {
+    return rigifyToMixamo[target];
+  }
+
+  // Strip DEF- prefix or mixamorig: prefix just in case
   if (target.startsWith('DEF-')) {
     target = target.substring(4);
   }
-  if (target === 'neck') return 'spine.004';
-  if (target === 'head') return 'spine.006';
+  if (target.toLowerCase().includes('mixamorig')) {
+    target = target.replace(/mixamorig:?_?/i, '');
+  }
+
+  // Common aliases
+  const aliases: Record<string, string> = {
+    'upper_arm.l': 'LeftArm',
+    'upper_arm_l': 'LeftArm',
+    'upper_arm.r': 'RightArm',
+    'upper_arm_r': 'RightArm',
+    'forearm.l': 'LeftForeArm',
+    'forearm_l': 'LeftForeArm',
+    'forearm.r': 'RightForeArm',
+    'forearm_r': 'RightForeArm',
+    'neck': 'Neck',
+    'head': 'Head',
+    'spine': 'Spine',
+    'spine.001': 'Spine1',
+    'spine.002': 'Spine2',
+    'thigh.l': 'LeftUpLeg',
+    'thigh_l': 'LeftUpLeg',
+    'thigh.r': 'RightUpLeg',
+    'thigh_r': 'RightUpLeg',
+    'shin.l': 'LeftLeg',
+    'shin_l': 'LeftLeg',
+    'shin.r': 'RightLeg',
+    'shin_r': 'RightLeg',
+    'foot.l': 'LeftFoot',
+    'foot_l': 'LeftFoot',
+    'foot.r': 'RightFoot',
+    'foot_r': 'RightFoot',
+    'hand.l': 'LeftHand',
+    'hand_l': 'LeftHand',
+    'hand.r': 'RightHand',
+    'hand_r': 'RightHand',
+  };
+
+  if (aliases[target]) return aliases[target];
+  if (aliases[target.toLowerCase()]) return aliases[target.toLowerCase()];
+
   return target;
 };
 
@@ -161,13 +228,13 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       const lower = part.toLowerCase();
       if (lower.includes('spine') || lower.includes('neck') || lower.includes('head')) {
         categories.spine.bones.push(part);
-      } else if (lower.includes('.l') && (lower.includes('arm') || lower.includes('shoulder') || lower.includes('hand') || lower.includes('finger') || lower.includes('thumb'))) {
+      } else if (lower.includes('leftarm') || lower.includes('leftshoulder') || lower.includes('leftforearm') || lower.includes('lefthand') || (lower.includes('.l') && (lower.includes('arm') || lower.includes('shoulder') || lower.includes('hand') || lower.includes('finger') || lower.includes('thumb')))) {
         categories.leftArm.bones.push(part);
-      } else if (lower.includes('.r') && (lower.includes('arm') || lower.includes('shoulder') || lower.includes('hand') || lower.includes('finger') || lower.includes('thumb'))) {
+      } else if (lower.includes('rightarm') || lower.includes('rightshoulder') || lower.includes('rightforearm') || lower.includes('righthand') || (lower.includes('.r') && (lower.includes('arm') || lower.includes('shoulder') || lower.includes('hand') || lower.includes('finger') || lower.includes('thumb')))) {
         categories.rightArm.bones.push(part);
-      } else if (lower.includes('.l') && (lower.includes('thigh') || lower.includes('shin') || lower.includes('foot') || lower.includes('toe') || lower.includes('leg'))) {
+      } else if (lower.includes('leftupleg') || lower.includes('leftleg') || lower.includes('leftfoot') || (lower.includes('.l') && (lower.includes('thigh') || lower.includes('shin') || lower.includes('foot') || lower.includes('toe') || lower.includes('leg')))) {
         categories.leftLeg.bones.push(part);
-      } else if (lower.includes('.r') && (lower.includes('thigh') || lower.includes('shin') || lower.includes('foot') || lower.includes('toe') || lower.includes('leg'))) {
+      } else if (lower.includes('rightupleg') || lower.includes('rightleg') || lower.includes('rightfoot') || (lower.includes('.r') && (lower.includes('thigh') || lower.includes('shin') || lower.includes('foot') || lower.includes('toe') || lower.includes('leg')))) {
         categories.rightLeg.bones.push(part);
       } else {
         categories.other.bones.push(part);
@@ -181,7 +248,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [supabaseLoading, setSupabaseLoading] = useState(false);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
-  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character6.glb');
+  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll.glb');
 
   // Debug system logger to match user's custom template script feedback
   const [debugLogs, setDebugLogs] = useState<string[]>(['Αναμονή για εκκίνηση φόρτωσης...']);
@@ -246,6 +313,106 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     };
   }, [gltfModel, gltfRotations]);
 
+  // Dynamic lil-gui overlay controller for testing major Mixamo rigged bone rotations
+  useEffect(() => {
+    if (!gltfModel) return;
+
+    let guiInstance: any = null;
+
+    const setupGui = () => {
+      if (!(window as any).lil || !(window as any).lil.GUI) return;
+
+      // Ensure any leftover GUI is destroyed first
+      if ((window as any)._activeAnatomyDollGui) {
+        try {
+          (window as any)._activeAnatomyDollGui.destroy();
+        } catch (e) {}
+      }
+
+      const GUI = (window as any).lil.GUI;
+      guiInstance = new GUI({
+        title: '🤸 Mannequin Bones Controller',
+        autoPlace: true
+      });
+      (window as any)._activeAnatomyDollGui = guiInstance;
+
+      const guiDom = guiInstance.domElement;
+      if (guiDom) {
+        guiDom.style.top = '100px';
+        guiDom.style.right = '20px';
+        guiDom.style.zIndex = '9999';
+        guiDom.style.position = 'absolute';
+      }
+
+      // Add major Mixamo joints requested by user
+      const targetBones = [
+        { key: 'Head', label: 'Head 🧠' },
+        { key: 'Spine', label: 'Spine 🦴' },
+        { key: 'LeftArm', label: 'Left Upper Arm 💪' },
+        { key: 'RightArm', label: 'Right Upper Arm 🛡️' },
+        { key: 'LeftForeArm', label: 'Left Forearm 🦾' },
+        { key: 'RightForeArm', label: 'Right Forearm 🦾' }
+      ];
+
+      targetBones.forEach((joint) => {
+        const bone = gltfModel.scene.getObjectByName(joint.key);
+        if (bone) {
+          const folder = guiInstance.addFolder(joint.label);
+          
+          const syncRotation = () => {
+            setGltfRotations(prev => ({
+              ...prev,
+              [joint.key]: [bone.rotation.x, bone.rotation.y, bone.rotation.z]
+            }));
+          };
+
+          const limits = { min: -3.14, max: 3.14 };
+          folder.add(bone.rotation, 'x', limits.min, limits.max, 0.01).name('Rotate X').onChange(syncRotation).listen();
+          folder.add(bone.rotation, 'y', limits.min, limits.max, 0.01).name('Rotate Y').onChange(syncRotation).listen();
+          folder.add(bone.rotation, 'z', limits.min, limits.max, 0.01).name('Rotate Z').onChange(syncRotation).listen();
+          
+          folder.open();
+        }
+      });
+    };
+
+    if (!(window as any).lil || !(window as any).lil.GUI) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/lil-gui@0.18';
+      script.async = true;
+      script.onload = () => {
+        setupGui();
+      };
+      document.head.appendChild(script);
+
+      return () => {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+        if (guiInstance) {
+          try {
+            guiInstance.destroy();
+          } catch (e) {}
+        }
+        if ((window as any)._activeAnatomyDollGui === guiInstance) {
+          (window as any)._activeAnatomyDollGui = null;
+        }
+      };
+    } else {
+      setupGui();
+      return () => {
+        if (guiInstance) {
+          try {
+            guiInstance.destroy();
+          } catch (e) {}
+        }
+        if ((window as any)._activeAnatomyDollGui === guiInstance) {
+          (window as any)._activeAnatomyDollGui = null;
+        }
+      };
+    }
+  }, [gltfModel]);
+
   // Attempt to load standard Supabase model on mount
   useEffect(() => {
     try {
@@ -288,6 +455,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     setSupabaseLoading(true);
     setSupabaseError(null);
     const candidates = [
+      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character6.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character5.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character4.glb',
@@ -671,6 +839,14 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     gltf.scene.traverse((node: any) => {
       if (node.isBone) {
         hasBones = true;
+        if (node.name.toLowerCase().includes('mixamorig')) {
+          const match = node.name.match(/mixamorig:?_?([a-zA-Z590-9_-]+)/i);
+          if (match) {
+            node.name = match[1];
+          } else {
+            node.name = node.name.replace(/mixamorig:?_?/i, '');
+          }
+        }
       }
       if (node.isMesh) {
         node.castShadow = true;
