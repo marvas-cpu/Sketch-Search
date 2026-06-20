@@ -887,9 +887,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 <PerspectiveCamera makeDefault position={[0, 0.1, 3.2]} fov={40} />
                 <OrbitControls makeDefault enablePan={true} minDistance={1} maxDistance={10} enabled={!isDragging} target={[0, 0, 0]} />
                 
-                <ambientLight intensity={0.9} />
-                <spotLight position={[5, 10, 5]} angle={0.15} penumbra={1} intensity={1.2} castShadow />
-                <pointLight position={[-5, 5, -5]} intensity={0.5} />
+                <hemisphereLight args={[0xffffff, 0x444444, 1.2]} position={[0, 20, 0]} />
+                <directionalLight intensity={1.0} position={[5, 10, 7.5]} castShadow />
                 
                 <Grid 
                   infiniteGrid 
