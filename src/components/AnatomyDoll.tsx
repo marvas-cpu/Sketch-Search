@@ -136,6 +136,47 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [transformMode, setTransformMode] = useState<'rotate' | 'translate'>('rotate');
   const [isDragging, setIsDragging] = useState(false);
 
+  // Advanced sliders configurations
+  const [activeSlidersTab, setActiveSlidersTab] = useState<'focused' | 'all'>('all');
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
+    spine: true,
+    leftArm: true,
+    rightArm: true,
+    leftLeg: true,
+    rightLeg: true,
+    other: false,
+  });
+
+  const groupedBones = useMemo(() => {
+    const categories: Record<string, { label: string; bones: string[] }> = {
+      spine: { label: 'Spine & Head 🧠', bones: [] },
+      leftArm: { label: 'Left Arm & Hand 💪', bones: [] },
+      rightArm: { label: 'Right Arm & Hand 🛡️', bones: [] },
+      leftLeg: { label: 'Left Leg & Foot 🦵', bones: [] },
+      rightLeg: { label: 'Right Leg & Foot 👟', bones: [] },
+      other: { label: 'Other/Custom Joints ⚙️', bones: [] },
+    };
+
+    Object.keys(gltfRotations).forEach((part) => {
+      const lower = part.toLowerCase();
+      if (lower.includes('spine') || lower.includes('neck') || lower.includes('head')) {
+        categories.spine.bones.push(part);
+      } else if (lower.includes('.l') && (lower.includes('arm') || lower.includes('shoulder') || lower.includes('hand') || lower.includes('finger') || lower.includes('thumb'))) {
+        categories.leftArm.bones.push(part);
+      } else if (lower.includes('.r') && (lower.includes('arm') || lower.includes('shoulder') || lower.includes('hand') || lower.includes('finger') || lower.includes('thumb'))) {
+        categories.rightArm.bones.push(part);
+      } else if (lower.includes('.l') && (lower.includes('thigh') || lower.includes('shin') || lower.includes('foot') || lower.includes('toe') || lower.includes('leg'))) {
+        categories.leftLeg.bones.push(part);
+      } else if (lower.includes('.r') && (lower.includes('thigh') || lower.includes('shin') || lower.includes('foot') || lower.includes('toe') || lower.includes('leg'))) {
+        categories.rightLeg.bones.push(part);
+      } else {
+        categories.other.bones.push(part);
+      }
+    });
+
+    return Object.entries(categories).filter(([_, cat]) => cat.bones.length > 0);
+  }, [gltfRotations]);
+
   // Supabase / Custom model loading state
   const [supabaseLoading, setSupabaseLoading] = useState(false);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
@@ -176,6 +217,10 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
         applyGeminiPose(poseJson);
       };
       
+      (window as any).resetPose = () => {
+        resetMannequin();
+      };
+      
       (window as any).testPose = () => {
         const fakePose = {
           "DEF-upper_arm.R": { "x": 1.2, "y": 0.0, "z": -0.5 },
@@ -188,6 +233,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     
     return () => {
       delete (window as any).applyGeminiPose;
+      delete (window as any).resetPose;
       delete (window as any).testPose;
     };
   }, [gltfModel, gltfRotations]);
@@ -478,6 +524,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
           puppet.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
 
+        puppet.updateMatrixWorld(true);
+
         // 2. Align puppet's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
         const scaledBox2 = new THREE.Box3().setFromObject(puppet);
         const scaledCenter2 = scaledBox2.getCenter(new THREE.Vector3());
@@ -554,6 +602,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       const scaleFactor = 1.8 / maxDim;
       objGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
+
+    objGroup.updateMatrixWorld(true);
 
     // 2. Align model's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
     const scaledBox = new THREE.Box3().setFromObject(objGroup);
@@ -635,6 +685,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
 
+    gltf.scene.updateMatrixWorld(true);
+
     // 2. Align model's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
     const scaledBox = new THREE.Box3().setFromObject(gltf.scene);
     const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
@@ -656,16 +708,21 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     setSupabaseLoading(false);
   };
 
-  const updateGltfRotation = (axis: number, value: number) => {
-    if (!selectedPart || !gltfModel) return;
-    const obj = gltfModel.scene.getObjectByName(selectedPart);
+  const updateBoneRotation = (boneName: string, axis: number, value: number) => {
+    if (!gltfModel) return;
+    const obj = gltfModel.scene.getObjectByName(boneName);
     if (obj) {
       obj.rotation.setComponent(axis, value);
       setGltfRotations(prev => ({
         ...prev,
-        [selectedPart]: [obj.rotation.x, obj.rotation.y, obj.rotation.z]
+        [boneName]: [obj.rotation.x, obj.rotation.y, obj.rotation.z]
       }));
     }
+  };
+
+  const updateGltfRotation = (axis: number, value: number) => {
+    if (!selectedPart) return;
+    updateBoneRotation(selectedPart, axis, value);
   };
 
   const updateGltfTranslation = (axis: number, value: number) => {
@@ -1064,111 +1121,202 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 Mannequin Pivot Edit
               </h3>
 
-              {/* List Dropdown for Supabase bones */}
-              {Object.keys(gltfRotations).length > 0 && (
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
-                    Select Part to Move:
-                  </label>
-                  <select 
-                    value={selectedPart}
-                    onChange={(e) => setSelectedPart(e.target.value)}
-                    className="w-full p-2.5 bg-white border-2 border-navy rounded-xl font-bold text-xs text-navy uppercase tracking-wide focus:outline-none"
-                  >
-                    {Object.keys(gltfRotations).map((partName) => (
-                      <option key={partName} value={partName}>
-                        {getFriendlyPartName(partName)}
-                      </option>
-                    ))}
-                  </select>
+              {/* Tab Selector for Focused vs. All Bones */}
+              <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10 select-none">
+                <button
+                  type="button"
+                  onClick={() => setActiveSlidersTab('all')}
+                  className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${activeSlidersTab === 'all' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
+                >
+                  All Bones Sliders
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSlidersTab('focused')}
+                  className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${activeSlidersTab === 'focused' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
+                >
+                  Selected Bone Only
+                </button>
+              </div>
+
+              {activeSlidersTab === 'all' ? (
+                <div className="space-y-3 pt-1">
+                  <div className="bg-sky-50 p-2.5 border border-sky-200 rounded-xl text-[10px] font-bold text-navy/70 leading-relaxed uppercase">
+                    💡 Click on any joint name to select and overlay 3D handles in viewport!
+                  </div>
+                  {groupedBones.map(([catKey, category]) => {
+                    const isOpen = openCategories[catKey] || false;
+                    return (
+                      <div key={catKey} className="border-2 border-navy/15 rounded-2xl overflow-hidden bg-white/50">
+                        <button
+                          type="button"
+                          onClick={() => setOpenCategories(prev => ({ ...prev, [catKey]: !prev[catKey] }))}
+                          className="w-full px-4 py-2.5 bg-navy/5 border-b-2 border-navy/5 text-left font-black text-[11px] uppercase tracking-wider text-navy flex justify-between items-center hover:bg-navy/10 transition-all"
+                        >
+                          <span>{category.label}</span>
+                          <span className="text-xs">{isOpen ? '▼' : '▶'}</span>
+                        </button>
+                        
+                        {isOpen && (
+                          <div className="p-3 space-y-4 max-h-96 overflow-y-auto custom-scrollbar bg-white/20">
+                            {category.bones.map((boneName) => {
+                              const isBoneSelected = selectedPart === boneName;
+                              return (
+                                <div key={boneName} className={`space-y-2 p-2 rounded-xl border-2 transition-all ${isBoneSelected ? 'bg-sky-50 border-sky-300 shadow-sm' : 'border-transparent'}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedPart(boneName)}
+                                    className="w-full text-left font-black text-[10px] uppercase tracking-normal text-navy flex items-center justify-between"
+                                  >
+                                    <span className="truncate hover:text-sky-600 transition-colors">
+                                      {isBoneSelected ? '● ' : ''}{getFriendlyPartName(boneName)}
+                                    </span>
+                                    <span className="text-[9px] text-navy/40 lowercase tracking-tight opacity-70">
+                                      {boneName}
+                                    </span>
+                                  </button>
+                                  
+                                  <div className="grid grid-cols-1 gap-1.5 pt-1 border-t border-navy/5">
+                                    {['X', 'Y', 'Z'].map((axisLabel, axisIdx) => {
+                                      const val = gltfRotations[boneName] ? gltfRotations[boneName][axisIdx] : 0;
+                                      return (
+                                        <div key={`${boneName}-${axisLabel}`} className="flex items-center gap-2">
+                                          <span className="text-[9px] font-black text-navy/50 w-3">{axisLabel}</span>
+                                          <input 
+                                            type="range"
+                                            min={-Math.PI}
+                                            max={Math.PI}
+                                            step={0.01}
+                                            value={val}
+                                            onChange={(e) => updateBoneRotation(boneName, axisIdx, parseFloat(e.target.value))}
+                                            className="flex-1 h-2 appearance-none bg-navy/10 cursor-pointer accent-sky-500 rounded-full"
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                          <span className="text-[9px] font-mono text-navy font-bold w-8 text-right bg-blue-50 px-1 py-0.5 rounded border border-blue-100/30">
+                                            {Math.round(val * 180 / Math.PI)}°
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* List Dropdown for Supabase bones */}
+                  {Object.keys(gltfRotations).length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
+                        Select Part to Move:
+                      </label>
+                      <select 
+                        value={selectedPart}
+                        onChange={(e) => setSelectedPart(e.target.value)}
+                        className="w-full p-2.5 bg-white border-2 border-navy rounded-xl font-bold text-xs text-navy uppercase tracking-wide focus:outline-none"
+                      >
+                        {Object.keys(gltfRotations).map((partName) => (
+                          <option key={partName} value={partName}>
+                            {getFriendlyPartName(partName)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Mode Toggler */}
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
+                      Transformation Mode:
+                    </label>
+                    <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10 select-none">
+                      <button
+                        type="button"
+                        onClick={() => setTransformMode('rotate')}
+                        className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'rotate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
+                      >
+                        <RefreshCw size={12} /> Rotate
+                      </button>
+                      <button
+                        type="button"
+                        disabled={selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene)}
+                        onClick={() => setTransformMode('translate')}
+                        className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'translate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                      >
+                        <Move size={12} /> Translate
+                      </button>
+                    </div>
+                    {selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene) && (
+                      <p className="text-[10px] text-orange-500 font-bold uppercase mt-1.5 bg-orange-50 border border-orange-100 p-2 rounded-xl">
+                        ⚠️ Joint can only be rotated to keep the mannequin connected!
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Interactive sliders based on transform mode */}
+                  <div className="space-y-4 pt-2">
+                    {transformMode === 'rotate' ? (
+                      ['X Rotation', 'Y Rotation', 'Z Rotation'].map((axis, i) => {
+                        const val = gltfRotations[selectedPart] ? gltfRotations[selectedPart][i] : 0;
+                        return (
+                          <div key={axis} className="space-y-2">
+                            <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
+                              <span>{axis}</span>
+                              <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
+                                {Math.round(val * 180 / Math.PI)}°
+                              </div>
+                            </div>
+                            <div className="relative flex items-center group">
+                              <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
+                              <input 
+                                type="range"
+                                min={-Math.PI}
+                                max={Math.PI}
+                                step={0.001}
+                                value={val}
+                                onChange={(e) => updateGltfRotation(i, parseFloat(e.target.value))}
+                                className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-500"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      ['X Position', 'Y Position', 'Z Position'].map((axis, i) => {
+                        const val = gltfTranslations[selectedPart] ? gltfTranslations[selectedPart][i] : 0;
+                        return (
+                          <div key={axis} className="space-y-2">
+                            <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
+                              <span>{axis}</span>
+                              <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
+                                {val.toFixed(3)}
+                              </div>
+                            </div>
+                            <div className="relative flex items-center group">
+                              <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
+                              <input 
+                                type="range"
+                                min={-2.0}
+                                max={2.0}
+                                step={0.001}
+                                value={val}
+                                onChange={(e) => updateGltfTranslation(i, parseFloat(e.target.value))}
+                                className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-400"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               )}
-
-              {/* Mode Toggler */}
-              <div className="space-y-1.5 pt-1">
-                <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
-                  Transformation Mode:
-                </label>
-                <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10 select-none">
-                  <button
-                    type="button"
-                    onClick={() => setTransformMode('rotate')}
-                    className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'rotate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
-                  >
-                    <RefreshCw size={12} /> Rotate
-                  </button>
-                  <button
-                    type="button"
-                    disabled={selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene)}
-                    onClick={() => setTransformMode('translate')}
-                    className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'translate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                  >
-                    <Move size={12} /> Translate
-                  </button>
-                </div>
-                {selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene) && (
-                  <p className="text-[10px] text-orange-500 font-bold uppercase mt-1.5 bg-orange-50 border border-orange-100 p-2 rounded-xl">
-                    ⚠️ Joint can only be rotated to keep the mannequin connected!
-                  </p>
-                )}
-              </div>
-
-              {/* Interactive sliders based on transform mode */}
-              <div className="space-y-4 pt-2">
-                {transformMode === 'rotate' ? (
-                  ['X Rotation', 'Y Rotation', 'Z Rotation'].map((axis, i) => {
-                    const val = gltfRotations[selectedPart] ? gltfRotations[selectedPart][i] : 0;
-                    return (
-                      <div key={axis} className="space-y-2">
-                        <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
-                          <span>{axis}</span>
-                          <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
-                            {Math.round(val * 180 / Math.PI)}°
-                          </div>
-                        </div>
-                        <div className="relative flex items-center group">
-                          <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
-                          <input 
-                            type="range"
-                            min={-Math.PI}
-                            max={Math.PI}
-                            step={0.001}
-                            value={val}
-                            onChange={(e) => updateGltfRotation(i, parseFloat(e.target.value))}
-                            className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-500"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  ['X Position', 'Y Position', 'Z Position'].map((axis, i) => {
-                    const val = gltfTranslations[selectedPart] ? gltfTranslations[selectedPart][i] : 0;
-                    return (
-                      <div key={axis} className="space-y-2">
-                        <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
-                          <span>{axis}</span>
-                          <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
-                            {val.toFixed(3)}
-                          </div>
-                        </div>
-                        <div className="relative flex items-center group">
-                          <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
-                          <input 
-                            type="range"
-                            min={-2.0}
-                            max={2.0}
-                            step={0.001}
-                            value={val}
-                            onChange={(e) => updateGltfTranslation(i, parseFloat(e.target.value))}
-                            className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-400"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
             </div>
 
             {/* Interaction buttons */}
