@@ -469,18 +469,21 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
           }
         });
 
+        // 1. Scale puppet automatically to standard 1.8 units tall
         const box = new THREE.Box3().setFromObject(puppet);
         const size2 = box.getSize(new THREE.Vector3());
-        const center2 = box.getCenter(new THREE.Vector3());
-        puppet.position.x += (-center2.x);
-        puppet.position.y += (-center2.y) + size2.y / 2 + 0.1;
-        puppet.position.z += (-center2.z);
-
         const maxDim = Math.max(size2.x, size2.y, size2.z);
         if (maxDim > 0) {
-          const scaleFactor = 2.4 / maxDim;
+          const scaleFactor = 1.8 / maxDim;
           puppet.scale.set(scaleFactor, scaleFactor, scaleFactor);
         }
+
+        // 2. Align puppet's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
+        const scaledBox2 = new THREE.Box3().setFromObject(puppet);
+        const scaledCenter2 = scaledBox2.getCenter(new THREE.Vector3());
+        puppet.position.x = -scaledCenter2.x;
+        puppet.position.y = -scaledBox2.min.y;
+        puppet.position.z = -scaledCenter2.z;
 
         setGltfModel({ scene: puppet });
         setOriginalPositions(initialPositions);
@@ -543,19 +546,21 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     });
 
+    // 1. Scale model automatically to standard 1.8 units tall
     const box = new THREE.Box3().setFromObject(objGroup);
     const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    
-    objGroup.position.x += (-center.x);
-    objGroup.position.y += (-center.y) + size.y / 2 + 0.1; 
-    objGroup.position.z += (-center.z);
-
     const maxDim = Math.max(size.x, size.y, size.z);
     if (maxDim > 0) {
-      const scaleFactor = 2.4 / maxDim;
+      const scaleFactor = 1.8 / maxDim;
       objGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
+
+    // 2. Align model's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
+    const scaledBox = new THREE.Box3().setFromObject(objGroup);
+    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+    objGroup.position.x = -scaledCenter.x;
+    objGroup.position.y = -scaledBox.min.y;
+    objGroup.position.z = -scaledCenter.z;
 
     setGltfModel({ scene: objGroup });
     setOriginalPositions(initialPositions);
@@ -620,19 +625,23 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     });
 
+    // 1. Scale model automatically to standard 1.8 units tall
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    
-    gltf.scene.position.x += (-center.x);
-    gltf.scene.position.y += (-center.y) + size.y / 2 + 0.1; 
-    gltf.scene.position.z += (-center.z);
-
     const maxDim = Math.max(size.x, size.y, size.z);
+    
     if (maxDim > 0) {
-      const scaleFactor = 2.4 / maxDim;
+      const scaleFactor = 1.8 / maxDim;
       gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
     }
+
+    // 2. Align model's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
+    const scaledBox = new THREE.Box3().setFromObject(gltf.scene);
+    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+    
+    gltf.scene.position.x = -scaledCenter.x;
+    gltf.scene.position.y = -scaledBox.min.y;
+    gltf.scene.position.z = -scaledCenter.z;
 
     setGltfModel(gltf);
     setOriginalPositions(initialPositions);
@@ -733,8 +742,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       const worldPos = new THREE.Vector3();
       selectedObject.getWorldPosition(worldPos);
       
-      // Offset by the parent group's relative Y coordinate shift (-0.6)
-      worldPos.y -= -0.6;
+      // Offset by the parent group's relative Y coordinate shift (-1.0)
+      worldPos.y -= -1.0;
       
       return (
         <mesh position={[worldPos.x, worldPos.y, worldPos.z]}>
@@ -767,6 +776,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
         ref={controlsRef}
         object={selectedObject}
         mode={transformMode}
+        space={transformMode === 'rotate' ? 'local' : 'world'}
         size={0.8}
         onChange={handleGizmoChange}
       />
@@ -815,8 +825,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 className="cursor-crosshair"
               >
                 <color attach="background" args={['#f1f5f9']} />
-                <PerspectiveCamera makeDefault position={[0, 1.4, 4.5]} fov={40} />
-                <OrbitControls makeDefault enablePan={true} minDistance={1} maxDistance={10} enabled={!isDragging} />
+                <PerspectiveCamera makeDefault position={[0, 0.1, 3.2]} fov={40} />
+                <OrbitControls makeDefault enablePan={true} minDistance={1} maxDistance={10} enabled={!isDragging} target={[0, 0, 0]} />
                 
                 <ambientLight intensity={0.9} />
                 <spotLight position={[5, 10, 5]} angle={0.15} penumbra={1} intensity={1.2} castShadow />
@@ -834,14 +844,54 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 />
 
                 {gltfModel && (
-                  <group position={[0, -0.6, 0]}>
+                  <group position={[0, -1, 0]}>
                     <primitive 
                       object={gltfModel.scene} 
                       onClick={(e: any) => {
                         e.stopPropagation();
                         let current = e.object;
                         if (current) {
-                          // Find nearest bone if rigged/skinned mesh to make bones targetable
+                          // High-precision bone selection using skeleton skin indices/weights
+                          if (current.isSkinnedMesh && current.skeleton && current.geometry) {
+                            const face = e.face;
+                            const skinIndexAttr = current.geometry.getAttribute('skinIndex');
+                            const skinWeightAttr = current.geometry.getAttribute('skinWeight');
+                            
+                            if (face && skinIndexAttr && skinWeightAttr) {
+                              const vertexIndices = [face.a, face.b, face.c];
+                              const boneWeights: Record<number, number> = {};
+                              
+                              vertexIndices.forEach(vIdx => {
+                                for (let k = 0; k < 4; k++) {
+                                  const bIdx = skinIndexAttr.getComponent(vIdx, k);
+                                  const weight = skinWeightAttr.getComponent(vIdx, k);
+                                  if (weight > 0.01) {
+                                    boneWeights[bIdx] = (boneWeights[bIdx] || 0) + weight;
+                                  }
+                                }
+                              });
+                              
+                              let bestBoneIdx = -1;
+                              let maxWeight = -1;
+                              for (const bIdxStr in boneWeights) {
+                                const bIdx = parseInt(bIdxStr);
+                                if (boneWeights[bIdx] > maxWeight) {
+                                  maxWeight = boneWeights[bIdx];
+                                  bestBoneIdx = bIdx;
+                                }
+                              }
+                              
+                              if (bestBoneIdx !== -1 && current.skeleton.bones[bestBoneIdx]) {
+                                const clickedBone = current.skeleton.bones[bestBoneIdx];
+                                if (clickedBone && clickedBone.name) {
+                                  setSelectedPart(clickedBone.name);
+                                  return;
+                                }
+                              }
+                            }
+                          }
+
+                          // Fallback 1: Spatial bone proximity
                           if (current.isSkinnedMesh && current.skeleton && current.skeleton.bones.length > 0) {
                             let nearestBone = null;
                             let minDist = Infinity;
@@ -859,6 +909,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                               return;
                             }
                           }
+                          
+                          // Fallback 2: Name checking
                           if (current.name) {
                             let partName = current.name;
                             if (partName.endsWith('_Mesh')) {
@@ -869,6 +921,39 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                         }
                       }}
                     />
+                    
+                    {/* Render clickable and visible bone joint helper spheres so users can select and pose easily */}
+                    {Object.keys(gltfRotations).map((partName) => {
+                      const bone = gltfModel.scene.getObjectByName(partName);
+                      if (!bone || !bone.isBone) return null;
+                      
+                      const worldPos = new THREE.Vector3();
+                      bone.getWorldPosition(worldPos);
+                      
+                      // Convert from world space to parent group space (by subtracting parent group y position -1.0)
+                      worldPos.y -= -1.0;
+                      
+                      const isSelected = selectedPart === partName;
+                      
+                      return (
+                        <mesh 
+                          key={`joint-helper-${partName}`} 
+                          position={[worldPos.x, worldPos.y, worldPos.z]}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPart(partName);
+                          }}
+                        >
+                          <sphereGeometry args={[isSelected ? 0.06 : 0.035, 16, 16]} />
+                          <meshBasicMaterial 
+                            color={isSelected ? "#00c4ff" : "#fbbf24"} 
+                            transparent 
+                            opacity={isSelected ? 0.95 : 0.65}
+                            depthTest={false}
+                          />
+                        </mesh>
+                      );
+                    })}
                     
                     {/* Bounding outline display for selected element */}
                     <SelectionHelper />
