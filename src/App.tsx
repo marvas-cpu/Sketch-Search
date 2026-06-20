@@ -131,13 +131,13 @@ const normalizeLevel = (levelInput: string): string => {
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>('3D Doll');
   const [error, setError] = useState<string | null>(null);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [customTutorials, setCustomTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [isCapturingPose, setIsCapturingPose] = useState(false);
+  const [isCapturingPose, setIsCapturingPose] = useState(true);
 
   // Form states for custom storage updates
   const [savingPoseUrl, setSavingPoseUrl] = useState<string | null>(null);
