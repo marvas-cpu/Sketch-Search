@@ -8,7 +8,14 @@ function getAI() {
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is not defined in the environment");
     }
-    aiInstance = new GoogleGenAI({ apiKey });
+    aiInstance = new GoogleGenAI({ 
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return aiInstance;
 }
@@ -20,7 +27,7 @@ export async function getSketchFeedback(imageUri: string, tutorialTitle: string,
     const base64Data = imageUri.split(',')[1];
     
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash",
       contents: [
         {
           parts: [
@@ -31,10 +38,11 @@ export async function getSketchFeedback(imageUri: string, tutorialTitle: string,
               
               Follow these rules:
               1. **Accuracy Score**: Evaluate how close the sketch is to the reference pose and define an accuracy percentage (0-100%).
-              2. **Score Header**: Start your response with a bold header based on the score:
+              2. **Score Header**: The very first line of your response MUST start with a bold header in this exact format (do not output literal brackets. Replace "[Score]" with the actual numeric score, e.g. "82%"):
                  - 0-30%: "**[Score]% - Not so good yet, but keep trying!**"
                  - 31-70%: "**[Score]% - Keep going, you are catching the form!**"
                  - 71-100%: "**[Score]% - You did great! Excellent work.**"
+                 Example: "**82% - Keep going, you are catching the form!**"
               3. **One Step at a Time**: After the header, analyze the sketch but present only ONE teaching point or step at a time. Do not overwhelm them.
               4. **Anatomical Focus**: Explain the point in terms of Line of Action, Weight Distribution, or Squash and Stretch.
               5. **Wait State**: After giving feedback, explicitly ask the user to practice or refine that specific element. Use phrases like 'Let me know when you have adjusted the line of action'.
