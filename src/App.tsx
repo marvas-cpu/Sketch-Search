@@ -131,13 +131,13 @@ const normalizeLevel = (levelInput: string): string => {
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState<string | null>('3D Doll');
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tutorials, setTutorials] = useState<any[]>([]);
   const [customTutorials, setCustomTutorials] = useState<any[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [isCapturingPose, setIsCapturingPose] = useState(true);
+  const [isCapturingPose, setIsCapturingPose] = useState(false);
 
   // Form states for custom storage updates
   const [savingPoseUrl, setSavingPoseUrl] = useState<string | null>(null);
@@ -510,15 +510,7 @@ export default function App() {
               </button>
             </motion.div>
 
-            {isCapturingPose && (
-              <AnatomyDoll 
-                onCapture={(imageUrl) => {
-                  setSavingPoseUrl(imageUrl);
-                  setNewTutorialLevel('3D Doll');
-                }}
-                onClose={() => setIsCapturingPose(false)}
-              />
-            )}
+            {/* Model is preloaded globally in the background to ensure instant startup! */}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl">
@@ -584,6 +576,17 @@ export default function App() {
           </div>
         )}
     </main>
+    
+      {/* 3D Anatomy Doll Preloaded Studio */}
+      <div className={isCapturingPose ? "block" : "hidden pointer-events-none opacity-0 absolute pb-1 w-1 h-1 overflow-hidden"}>
+        <AnatomyDoll 
+          onCapture={(imageUrl) => {
+            setSavingPoseUrl(imageUrl);
+            setNewTutorialLevel('3D Doll');
+          }}
+          onClose={() => setIsCapturingPose(false)}
+        />
+      </div>
 
       {/* Tutorial Modal */}
       <AnimatePresence>
