@@ -183,6 +183,14 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
   const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character5.glb');
 
+  // Debug system logger to match user's custom template script feedback
+  const [debugLogs, setDebugLogs] = useState<string[]>(['Αναμονή για εκκίνηση φόρτωσης...']);
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
+
+  const showLog = (message: string, isError = false) => {
+    setDebugLogs(prev => [...prev, `${isError ? '❌ ' : 'ℹ️ '} ${message}`]);
+  };
+
   // Helper inside component to pose joints from a Rigify/DEF payload
   const applyGeminiPose = (poseJson: Record<string, { x?: number; y?: number; z?: number }>) => {
     if (!gltfModel) {
@@ -240,7 +248,13 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
 
   // Attempt to load standard Supabase model on mount
   useEffect(() => {
-    autoDetectAndLoadSupabase();
+    try {
+      showLog('Εκκίνηση Three.js...');
+      showLog('Ζητείται το αρχείο από το Supabase...');
+      autoDetectAndLoadSupabase();
+    } catch (err: any) {
+      showLog('ΚΡΙΣΙΜΟ ΣΦΑΛΜΑ ΚΩΔΙΚΑ: ' + (err.message || err), true);
+    }
   }, []);
 
   const loadAnyModel = async (url: string): Promise<{ type: 'obj' | 'gltf'; data: any }> => {
@@ -248,13 +262,23 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     if (isObj) {
       const loader = new OBJLoader();
       const obj = await new Promise<any>((resolve, reject) => {
-        loader.load(url, resolve, undefined, reject);
+        loader.load(url, resolve, (xhr) => {
+          if (xhr.lengthComputable) {
+            const percent = Math.round((xhr.loaded / xhr.total) * 100);
+            setDownloadPercent(percent);
+          }
+        }, reject);
       });
       return { type: 'obj', data: obj };
     } else {
       const loader = new GLTFLoader();
       const gltf = await new Promise<any>((resolve, reject) => {
-        loader.load(url, resolve, undefined, reject);
+        loader.load(url, resolve, (xhr) => {
+          if (xhr.lengthComputable) {
+            const percent = Math.round((xhr.loaded / xhr.total) * 100);
+            setDownloadPercent(percent);
+          }
+        }, reject);
       });
       return { type: 'gltf', data: gltf };
     }
@@ -287,13 +311,16 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     }
 
     setSupabaseLoading(false);
-    setSupabaseError("Supabase Model asset is missing. Please ensure your storage bucket has public access or paste your model URL path below.");
+    const errMsg = "Supabase Model asset is missing. Please ensure your storage bucket has public access or paste your model URL path below.";
+    setSupabaseError(errMsg);
+    showLog('ΣΦΑΛΜΑ THREE.JS ΚΑΤΑ ΤΗ ΦΟΡΤΩΣΗ: ' + errMsg, true);
   };
 
   const handleManualLoad = async (urlToLoad: string) => {
     if (!urlToLoad) return;
     setSupabaseLoading(true);
     setSupabaseError(null);
+    showLog(`Μη αυτόματη φόρτωση URL: ${urlToLoad}...`);
     try {
       const result = await loadAnyModel(urlToLoad);
       if (result.type === 'obj') {
@@ -303,12 +330,15 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     } catch (err: any) {
       console.error(err);
-      setSupabaseError(err.message || "Failed to parse or fetch model. Check the CORS settings or URL endpoint.");
+      const errMsg = err.message || "Failed to parse or fetch model. Check the CORS settings or URL endpoint.";
+      setSupabaseError(errMsg);
+      showLog('ΣΦΑΛΜΑ THREE.JS ΚΑΤΑ ΤΗ ΦΟΡΤΩΣΗ: ' + errMsg, true);
       setSupabaseLoading(false);
     }
   };
 
   const applyLoadedObjModel = (objGroup: any, url: string) => {
+    showLog('Το αρχείο κατέβηκε επιτυχώς! Γίνεται εισαγωγή στη σκηνή...');
     // Determine if we need to auto-rig (only 1 mesh or LineSegments)
     let meshCount = 0;
     let sourceNode: any = null;
@@ -625,9 +655,12 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     }
     setSupabaseLoaded(true);
     setSupabaseLoading(false);
+    setDownloadPercent(null);
+    showLog('Το μοντέλο τοποθετήθηκε με επιτυχία στην οθόνη!');
   };
 
   const applyLoadedGltfModel = (gltf: any, url: string) => {
+    showLog('Το αρχείο κατέβηκε επιτυχώς! Γίνεται εισαγωγή στη σκηνή...');
     // Traverse to verify if the model actually has skeletal bone elements
     let hasBones = false;
     gltf.scene.traverse((node: any) => {
@@ -708,6 +741,8 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     }
     setSupabaseLoaded(true);
     setSupabaseLoading(false);
+    setDownloadPercent(null);
+    showLog('Το μοντέλο τοποθετήθηκε με επιτυχία στην οθόνη!');
   };
 
   const updateBoneRotation = (boneName: string, axis: number, value: number) => {
@@ -871,6 +906,30 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 <span className="font-bold text-navy text-sm uppercase tracking-widest animate-pulse">Loading model from Supabase...</span>
               </div>
             )}
+
+            {/* Real-time System Debug Log to match user's custom template script feedback */}
+            <div className="absolute bottom-4 left-4 right-4 bg-navy/95 border-2 border-slate-700/50 text-emerald-400 p-4 font-mono text-[11px] rounded-2xl max-h-[140px] overflow-y-auto z-30 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col gap-1">
+              <div className="font-sans font-black text-[9px] uppercase tracking-widest text-[#5bc9ff] mb-1 pb-1 border-b border-slate-700/50 flex items-center justify-between">
+                <span>System Debug Log / Διαγνωστικά Συστήματος</span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                  <span className="text-emerald-400 font-bold">● ACTIVE</span>
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5 select-text">
+                {debugLogs.map((log, index) => (
+                  <div key={index} className="leading-relaxed">
+                    {log}
+                  </div>
+                ))}
+                {downloadPercent !== null && downloadPercent < 100 && (
+                  <div className="text-sky-300 font-bold flex items-center gap-1.5 animate-pulse">
+                    <span>📥</span>
+                    <span>Λήψη 3D Μοντέλου: {downloadPercent}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
             
             <Suspense fallback={
               <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-20">
