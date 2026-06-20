@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, Suspense, useEffect } from 'react';
+import React, { useRef, useState, useMemo, Suspense, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Grid, Environment, TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -298,6 +298,12 @@ const BoneItemController = React.memo(({
 
 const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Performance-optimised refs to run updates at 120fps visually, throttled to 30fps in React state
+  const throttleTimeoutRef = useRef<any>(null);
+  const pendingRotationsRef = useRef<Record<string, [number, number, number]>>({});
+  const throttleTranslationTimeoutRef = useRef<any>(null);
+  const pendingTranslationsRef = useRef<Record<string, [number, number, number]>>({});
   
   // Model state configurations
   const [selectedPart, setSelectedPart] = useState<string>('');
@@ -305,6 +311,11 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [gltfModel, setGltfModel] = useState<any>(null);
   const [gltfRotations, setGltfRotations] = useState<Record<string, [number, number, number]>>({});
   const [gltfTranslations, setGltfTranslations] = useState<Record<string, [number, number, number]>>({});
+  
+  const selectedObject = useMemo(() => {
+    if (!gltfModel || !selectedPart) return null;
+    return gltfModel.scene.getObjectByName(selectedPart);
+  }, [gltfModel, selectedPart]);
   
   // Initial baseline fallback state to restore transforms
   const [originalRotations, setOriginalRotations] = useState<Record<string, [number, number, number]>>({});
@@ -426,6 +437,13 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       delete (window as any).applyGeminiPose;
       delete (window as any).resetPose;
       delete (window as any).testPose;
+      
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+      }
+      if (throttleTranslationTimeoutRef.current) {
+        clearTimeout(throttleTranslationTimeoutRef.current);
+      }
     };
   }, [gltfModel, gltfRotations]);
 
@@ -949,35 +967,57 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     showLog('Το μοντέλο τοποθετήθηκε με επιτυχία στην οθόνη!');
   };
 
-  const updateBoneRotation = (boneName: string, axis: number, value: number) => {
+  const updateBoneRotation = useCallback((boneName: string, axis: number, value: number) => {
     if (!gltfModel) return;
     const obj = gltfModel.scene.getObjectByName(boneName);
     if (obj) {
+      // 1. Instantly rotate in Three.js for 120fps visual responsiveness
       obj.rotation.setComponent(axis, value);
-      setGltfRotations(prev => ({
-        ...prev,
-        [boneName]: [obj.rotation.x, obj.rotation.y, obj.rotation.z]
-      }));
+      
+      // 2. Queue the React state set within 25ms throttle window (40fps updates of auxiliary panels / overlay)
+      pendingRotationsRef.current[boneName] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+      
+      if (!throttleTimeoutRef.current) {
+        throttleTimeoutRef.current = setTimeout(() => {
+          setGltfRotations(prev => ({
+            ...prev,
+            ...pendingRotationsRef.current
+          }));
+          pendingRotationsRef.current = {};
+          throttleTimeoutRef.current = null;
+        }, 25);
+      }
     }
-  };
+  }, [gltfModel]);
 
-  const updateGltfRotation = (axis: number, value: number) => {
+  const updateGltfRotation = useCallback((axis: number, value: number) => {
     if (!selectedPart) return;
     updateBoneRotation(selectedPart, axis, value);
-  };
+  }, [selectedPart, updateBoneRotation]);
 
-  const updateGltfTranslation = (axis: number, value: number) => {
+  const updateGltfTranslation = useCallback((axis: number, value: number) => {
     if (!selectedPart || !gltfModel || !selectedObject) return;
     if (!canTranslateObject(selectedObject, gltfModel.scene)) return;
     const obj = gltfModel.scene.getObjectByName(selectedPart);
     if (obj) {
+      // 1. Instantly translate in Three.js for 120fps visual responsiveness
       obj.position.setComponent(axis, value);
-      setGltfTranslations(prev => ({
-        ...prev,
-        [selectedPart]: [obj.position.x, obj.position.y, obj.position.z]
-      }));
+      
+      // 2. Queue React state set within 25ms throttle window
+      pendingTranslationsRef.current[selectedPart] = [obj.position.x, obj.position.y, obj.position.z];
+      
+      if (!throttleTranslationTimeoutRef.current) {
+        throttleTranslationTimeoutRef.current = setTimeout(() => {
+          setGltfTranslations(prev => ({
+            ...prev,
+            ...pendingTranslationsRef.current
+          }));
+          pendingTranslationsRef.current = {};
+          throttleTranslationTimeoutRef.current = null;
+        }, 25);
+      }
     }
-  };
+  }, [selectedPart, gltfModel, selectedObject]);
 
   const handleCapture = () => {
     if (!canvasRef.current) return;
@@ -987,6 +1027,17 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
 
   const resetMannequin = () => {
     if (gltfModel) {
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+      if (throttleTranslationTimeoutRef.current) {
+        clearTimeout(throttleTranslationTimeoutRef.current);
+        throttleTranslationTimeoutRef.current = null;
+      }
+      pendingRotationsRef.current = {};
+      pendingTranslationsRef.current = {};
+
       Object.keys(originalRotations).forEach(k => {
         const obj = gltfModel.scene.getObjectByName(k);
         if (obj) {
@@ -1000,11 +1051,6 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       setGltfTranslations({ ...originalPositions });
     }
   };
-
-  const selectedObject = useMemo(() => {
-    if (!gltfModel || !selectedPart) return null;
-    return gltfModel.scene.getObjectByName(selectedPart);
-  }, [gltfModel, selectedPart]);
 
   // Adapt transformation mode automatically when selecting locked joints
   useEffect(() => {
