@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, ZoomIn, ZoomOut, RotateCcw, Camera, Sparkles, Box, Trash2, Check } from 'lucide-react';
+import { Search, User, Building2, TreeDeciduous, Menu, X, Github, Twitter, Info, Pencil, Palette, Eraser, Frame, Image as ImageIcon, Shapes, Smile, Star, Heart, Cloud, Sun, ZoomIn, ZoomOut, RotateCcw, Camera, Sparkles, Box, Trash2, Check, UploadCloud } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 import SketchCanvas from './components/SketchCanvas';
@@ -111,6 +111,24 @@ const getEnrichedData = (title: string) => {
   };
 };
 
+const normalizeLevel = (levelInput: string): string => {
+  if (!levelInput) return '';
+  const lvl = levelInput.trim().toLowerCase();
+  if (lvl.startsWith('beg') || lvl.includes('begin') || lvl.includes('begg')) {
+    return 'Beginner';
+  }
+  if (lvl.startsWith('av') || lvl.includes('average')) {
+    return 'Average';
+  }
+  if (lvl.startsWith('pr') || lvl.includes('pro')) {
+    return 'Pro';
+  }
+  if (lvl.includes('doll') || lvl.includes('3d')) {
+    return '3D Doll';
+  }
+  return levelInput;
+};
+
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
@@ -127,6 +145,8 @@ export default function App() {
   const [newTutorialDesc, setNewTutorialDesc] = useState('');
   const [newTutorialLevel, setNewTutorialLevel] = useState('Beginner');
   const [isAddingManually, setIsAddingManually] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     fetchTutorials();
@@ -178,6 +198,113 @@ export default function App() {
       setTutorials([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveNewTutorial = async (title: string, desc: string, level: string, url: string, isManual: boolean) => {
+    const cleanTitle = title.trim();
+    if (!cleanTitle || !url) return;
+
+    setIsSaving(true);
+    let finalImageUrl = url;
+
+    // Direct Base64 Data URI check, perfect for snapshots and local file uploads
+    if (url.startsWith('data:')) {
+      try {
+        const arr = url.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+
+        // Generate a clean slug or key for the uploaded image file name
+        const cleanName = cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const filename = `${isManual ? 'upload' : 'doll'}-${cleanName}-${Date.now()}.png`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('poses')
+          .upload(filename, blob, {
+            contentType: mime,
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error uploading image to poses bucket:', uploadError);
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from('poses')
+            .getPublicUrl(filename);
+          
+          if (publicUrlData?.publicUrl) {
+            finalImageUrl = publicUrlData.publicUrl;
+            console.log('Successfully uploaded file to Supabase Storage!', finalImageUrl);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to upload image blob:', err);
+      }
+    }
+
+    const newTutorial = {
+      id: `custom-${Date.now()}`,
+      title: cleanTitle,
+      description: desc.trim() || (isManual ? 'A custom reference pose study.' : 'A custom 3D mannequin pose study.'),
+      image_url: finalImageUrl,
+      level: level,
+      difficulty: level,
+      category: isManual ? 'MANUAL REFERENCE' : 'CUSTOM POSE',
+      custom: true,
+      created_at: new Date().toISOString()
+    };
+
+    // 1. Instantly update local/cache state so there is zero delay for the user
+    const updated = [newTutorial, ...customTutorials];
+    setCustomTutorials(updated);
+    localStorage.setItem('sketch_search_custom_tutorials', JSON.stringify(updated));
+
+    // 2. Clear states and set selection
+    setSelectedTutorial(newTutorial);
+    setSelectedLevel(level);
+
+    // 3. Try to write to Supabase (so they are persistent and become EXACTLY part of the main dataset for everyone)
+    try {
+      const payload = {
+        title: newTutorial.title,
+        description: newTutorial.description,
+        image_url: newTutorial.image_url,
+        level: newTutorial.level,
+        difficulty: newTutorial.level,
+        category: newTutorial.category
+      };
+
+      // Try inserting into tutorials_data
+      const { data: d1, error: e1 } = await supabase
+        .from('tutorials_data')
+        .insert([payload])
+        .select();
+      console.log('Inserted into tutorials_data Result:', d1, e1);
+
+      // Try inserting into tutorials
+      if (e1) {
+        const { data: d2, error: e2 } = await supabase
+          .from('tutorials')
+          .insert([payload])
+          .select();
+        console.log('Inserted into tutorials Result:', d2, e2);
+      }
+
+      // Fetch the latest tutorials so that the user sees it directly from Supabase!
+      await fetchTutorials();
+    } catch (err) {
+      console.error('Error writing tutorial to database:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -246,21 +373,34 @@ export default function App() {
     const enrichedDb = tutorials.map(t => {
       const cleanTitle = t.title ? t.title.trim().replace(/[\r\n]+/g, '') : 'Pose Study';
       const enrichment = getEnrichedData(cleanTitle);
+      const rawLevel = t.level || t.difficulty || 'Beginner';
+      const normLevel = normalizeLevel(rawLevel);
       return {
         ...t,
         title: cleanTitle,
         description: t.description || enrichment.description,
-        category: t.category || enrichment.category
+        category: t.category || enrichment.category,
+        level: normLevel,
+        difficulty: normLevel
       };
     });
 
-    return [...enrichedDb, ...customTutorials];
+    const enrichedCustom = customTutorials.map(t => {
+      const normLevel = normalizeLevel(t.level || t.difficulty || 'Beginner');
+      return {
+        ...t,
+        level: normLevel,
+        difficulty: normLevel
+      };
+    });
+
+    return [...enrichedDb, ...enrichedCustom];
   })();
 
   const filteredTutorials = allTutorials.filter(t => {
     const tutorialLevel = t.level || t.difficulty;
-    if (!tutorialLevel) return false; // Hide tutorials with no level if a level is selected
-    return tutorialLevel.toLowerCase() === selectedLevel?.toLowerCase();
+    if (!tutorialLevel) return false;
+    return normalizeLevel(tutorialLevel).toLowerCase() === normalizeLevel(selectedLevel || '').toLowerCase();
   });
 
   return (
@@ -415,32 +555,14 @@ export default function App() {
               </div>
             ) : (
               filteredTutorials.map((tutorial) => (
-                <motion.div
+                <motion.button
                   key={tutorial.id}
                   whileHover={{ scale: 1.05, rotate: -1 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setSelectedTutorial(tutorial)}
-                  className="group relative bg-white border-8 border-navy rounded-[3rem] overflow-hidden shadow-[15px_15px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-2 hover:translate-y-2 transition-all text-left flex flex-col justify-between cursor-pointer h-full"
+                  className="group relative bg-white border-8 border-navy rounded-[3rem] overflow-hidden shadow-[15px_15px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-2 hover:translate-y-2 transition-all text-left flex flex-col justify-between cursor-pointer h-full w-full"
                 >
-                  {/* Delete button if custom */}
-                  {tutorial.custom && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Are you sure you want to delete "${tutorial.title}"?`)) {
-                          const updated = customTutorials.filter((item) => item.id !== tutorial.id);
-                          setCustomTutorials(updated);
-                          localStorage.setItem('sketch_search_custom_tutorials', JSON.stringify(updated));
-                        }
-                      }}
-                      className="absolute top-6 right-6 p-3 bg-red-500 hover:bg-red-600 border-4 border-navy rounded-2xl text-white shadow-[2px_2px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all z-20 cursor-pointer"
-                      title="Delete Custom Pose"
-                    >
-                      <Trash2 size={20} strokeWidth={3} />
-                    </button>
-                  )}
-
-                  <div>
+                  <div className="w-full">
                     <div className="aspect-square bg-navy/5 border-b-8 border-navy relative overflow-hidden">
                       <img 
                         src={tutorial.image_url || `https://picsum.photos/seed/${tutorial.id}/600/600`} 
@@ -458,18 +580,13 @@ export default function App() {
                         }`}>
                           {tutorial.level || tutorial.difficulty}
                         </span>
-                        {tutorial.custom && (
-                          <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border-2 border-navy bg-amber-400">
-                            Custom Pose
-                          </span>
-                        )}
                       </div>
                       <h3 className="text-3xl font-bold mb-2 uppercase tracking-tight">{tutorial.title}</h3>
                       <p className="text-xl opacity-70 line-clamp-2 font-medium">{tutorial.description}</p>
                     </div>
                   </div>
                   
-                  <div className="p-8 pt-0">
+                  <div className="p-8 pt-0 w-full">
                     <div className="mt-2 flex items-center gap-2 text-navy font-bold text-xl">
                       <span>START SKETCHING</span>
                       <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1 }}>
@@ -477,7 +594,7 @@ export default function App() {
                       </motion.div>
                     </div>
                   </div>
-                </motion.div>
+                </motion.button>
               ))
             )}
           </div>
@@ -613,7 +730,7 @@ export default function App() {
               </h3>
               
               <div className="w-full aspect-video bg-slate-100 border-4 border-navy rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
-                <img src={savingPoseUrl} alt="Captured Pose" className="h-full object-contain" />
+                <img src={savingPoseUrl || ''} alt="Captured Pose" className="h-full object-contain" />
               </div>
 
               <div className="space-y-4 text-left">
@@ -624,7 +741,8 @@ export default function App() {
                     placeholder="E.g., Flying Kick, Sleeping Cat" 
                     value={newTutorialTitle}
                     onChange={(e) => setNewTutorialTitle(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200"
+                    disabled={isSaving}
+                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:opacity-50"
                   />
                 </div>
 
@@ -634,8 +752,9 @@ export default function App() {
                     placeholder="E.g., Focus on weight distribution and spine curve." 
                     value={newTutorialDesc}
                     onChange={(e) => setNewTutorialDesc(e.target.value)}
+                    disabled={isSaving}
                     rows={2}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 resize-none"
+                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 resize-none disabled:opacity-50"
                   />
                 </div>
 
@@ -645,7 +764,8 @@ export default function App() {
                     <select
                       value={newTutorialLevel}
                       onChange={(e) => setNewTutorialLevel(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase text-navy focus:outline-none focus:ring-4 focus:ring-sky-200"
+                      disabled={isSaving}
+                      className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase text-navy focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:opacity-50"
                     >
                       <option value="Beginner">Beginner</option>
                       <option value="Average">Average</option>
@@ -656,33 +776,33 @@ export default function App() {
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (!newTutorialTitle.trim()) return;
-                        const newTutorial = {
-                          id: `custom-${Date.now()}`,
-                          title: newTutorialTitle.trim(),
-                          description: newTutorialDesc.trim() || 'A custom animated pose study.',
-                          image_url: savingPoseUrl,
-                          level: newTutorialLevel,
-                          category: 'CUSTOM POSE',
-                          custom: true,
-                          created_at: new Date().toISOString()
-                        };
-                        const updated = [newTutorial, ...customTutorials];
-                        setCustomTutorials(updated);
-                        localStorage.setItem('sketch_search_custom_tutorials', JSON.stringify(updated));
-                        
+                      onClick={async () => {
+                        if (!newTutorialTitle.trim() || isSaving) return;
+                        await handleSaveNewTutorial(
+                          newTutorialTitle,
+                          newTutorialDesc,
+                          newTutorialLevel,
+                          savingPoseUrl || '',
+                          false
+                        );
                         setSavingPoseUrl(null);
                         setIsCapturingPose(false);
                         setNewTutorialTitle('');
                         setNewTutorialDesc('');
-                        setSelectedTutorial(newTutorial);
-                        setSelectedLevel(newTutorialLevel);
                       }}
-                      disabled={!newTutorialTitle.trim()}
+                      disabled={!newTutorialTitle.trim() || isSaving}
                       className="w-full py-3.5 bg-green-400 hover:bg-green-500 disabled:opacity-50 text-navy border-4 border-navy font-black text-xs uppercase tracking-wider rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
                     >
-                      <Check size={14} strokeWidth={3} /> Save Pose
+                      {isSaving ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={14} strokeWidth={3} /> Save Pose
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -704,12 +824,14 @@ export default function App() {
             >
               <button 
                 onClick={() => {
+                  if (isSaving) return;
                   setIsAddingManually(false);
                   setSavingPoseUrl(null);
                   setNewTutorialTitle('');
                   setNewTutorialDesc('');
                 }}
-                className="absolute top-4 right-4 p-2 bg-navy text-white rounded-full hover:rotate-90 transition-transform cursor-pointer"
+                disabled={isSaving}
+                className="absolute top-4 right-4 p-2 bg-navy text-white rounded-full hover:rotate-90 transition-transform cursor-pointer disabled:opacity-50"
               >
                 <X size={20} strokeWidth={3} />
               </button>
@@ -723,39 +845,102 @@ export default function App() {
               </h3>
 
               <div className="space-y-4 text-left">
+                {/* Visual File Selector/Dropzone */}
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-1">Image URL or base64</label>
-                  <input 
-                    type="text" 
-                    placeholder="https://example.com/pose.jpg or paste data URI" 
-                    value={savingPoseUrl || ''}
-                    onChange={(e) => setSavingPoseUrl(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200"
-                  />
+                  <label className="block text-xs font-black uppercase tracking-wider text-navy opacity-60 mb-2">Pose/Reference Image File</label>
                   
-                  {/* File Upload helper */}
-                  <div className="mt-2">
-                    <label className="border-4 border-navy border-dashed bg-slate-50 hover:bg-slate-100 rounded-xl py-4 px-4 flex flex-col items-center justify-center cursor-pointer transition-colors text-center">
-                      <span className="text-xs font-black text-navy uppercase tracking-wider">Drag & Drop or Click to Select File</span>
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              if (event.target?.result) {
-                                setSavingPoseUrl(event.target.result as string);
+                  {savingPoseUrl ? (
+                    <div className="relative border-4 border-navy rounded-2xl overflow-hidden aspect-video bg-slate-100 flex items-center justify-center shadow-inner group">
+                      <img src={savingPoseUrl} alt="Preview" className="h-full object-contain" />
+                      <div className="absolute inset-0 bg-navy/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => setSavingPoseUrl(null)}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 border-2 border-navy rounded-xl text-white font-bold text-xs uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                        <label className="px-4 py-2 bg-sky-400 hover:bg-sky-500 border-2 border-navy rounded-xl text-navy font-bold text-xs uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-50">
+                          Change File
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            disabled={isSaving}
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  if (event.target?.result) {
+                                    setSavingPoseUrl(event.target.result as string);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
                               }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!isSaving) setIsDragging(true);
+                      }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        if (isSaving) return;
+                        const file = e.dataTransfer.files?.[0];
+                        if (file && file.type.startsWith('image/')) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) {
+                              setSavingPoseUrl(event.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className={`border-4 border-dashed rounded-2xl py-8 px-6 flex flex-col items-center justify-center cursor-pointer transition-all text-center aspect-video ${
+                        isDragging 
+                          ? 'border-amber-400 bg-amber-50 shadow-[0_0_15px_rgba(251,191,36,0.2)] scale-[0.99]' 
+                          : 'border-navy bg-slate-50 hover:bg-slate-100'
+                      }`}
+                    >
+                      <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
+                        <UploadCloud size={40} className="text-navy opacity-60 mb-2" strokeWidth={2.5} />
+                        <span className="text-xs font-black text-navy uppercase tracking-wider block">
+                          Drag & Drop Reference Here
+                        </span>
+                        <span className="text-[10px] font-bold text-navy opacity-50 uppercase tracking-wide block mt-1">
+                          or Click to Select Any Image File
+                        </span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          disabled={isSaving}
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                if (event.target?.result) {
+                                  setSavingPoseUrl(event.target.result as string);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -765,7 +950,8 @@ export default function App() {
                     placeholder="E.g., Dynamic Jump, Sitting Bench" 
                     value={newTutorialTitle}
                     onChange={(e) => setNewTutorialTitle(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200"
+                    disabled={isSaving}
+                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 disabled:opacity-50"
                   />
                 </div>
 
@@ -775,8 +961,9 @@ export default function App() {
                     placeholder="E.g., Highlight action lines, twisting waist and shoulders." 
                     value={newTutorialDesc}
                     onChange={(e) => setNewTutorialDesc(e.target.value)}
+                    disabled={isSaving}
                     rows={2}
-                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 resize-none"
+                    className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase placeholder:opacity-50 text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 resize-none disabled:opacity-50"
                   />
                 </div>
 
@@ -786,7 +973,8 @@ export default function App() {
                     <select
                       value={newTutorialLevel}
                       onChange={(e) => setNewTutorialLevel(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase text-navy focus:outline-none focus:ring-4 focus:ring-amber-200"
+                      disabled={isSaving}
+                      className="w-full px-4 py-3 bg-slate-50 border-4 border-navy rounded-xl font-bold uppercase text-navy focus:outline-none focus:ring-4 focus:ring-amber-200 disabled:opacity-50"
                     >
                       <option value="Beginner">Beginner</option>
                       <option value="Average">Average</option>
@@ -797,33 +985,33 @@ export default function App() {
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (!newTutorialTitle.trim() || !savingPoseUrl) return;
-                        const newTutorial = {
-                          id: `custom-${Date.now()}`,
-                          title: newTutorialTitle.trim(),
-                          description: newTutorialDesc.trim() || 'A custom reference pose study.',
-                          image_url: savingPoseUrl,
-                          level: newTutorialLevel,
-                          category: 'MANUAL REFERENCE',
-                          custom: true,
-                          created_at: new Date().toISOString()
-                        };
-                        const updated = [newTutorial, ...customTutorials];
-                        setCustomTutorials(updated);
-                        localStorage.setItem('sketch_search_custom_tutorials', JSON.stringify(updated));
-                        
+                      onClick={async () => {
+                        if (!newTutorialTitle.trim() || !savingPoseUrl || isSaving) return;
+                        await handleSaveNewTutorial(
+                          newTutorialTitle,
+                          newTutorialDesc,
+                          newTutorialLevel,
+                          savingPoseUrl,
+                          true
+                        );
                         setIsAddingManually(false);
                         setSavingPoseUrl(null);
                         setNewTutorialTitle('');
                         setNewTutorialDesc('');
-                        setSelectedTutorial(newTutorial);
-                        setSelectedLevel(newTutorialLevel);
                       }}
-                      disabled={!newTutorialTitle.trim() || !savingPoseUrl}
+                      disabled={!newTutorialTitle.trim() || !savingPoseUrl || isSaving}
                       className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-navy border-4 border-navy font-black text-xs uppercase tracking-wider rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
                     >
-                      <Check size={14} strokeWidth={3} /> Save Reference
+                      {isSaving ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-navy border-t-transparent rounded-full animate-spin"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={14} strokeWidth={3} /> Save Reference
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
