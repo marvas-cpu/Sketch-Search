@@ -59,6 +59,26 @@ const getFriendlyPartName = (name: string): string => {
     'toe.R': 'Right Toes',
     'pelvis.L': 'Left Pelvis',
     'pelvis.R': 'Right Pelvis',
+    // Mixamo compatible bone titles
+    'Spine': 'Lower Spine (Spine)',
+    'Spine1': 'Middle Spine (Spine1)',
+    'Spine2': 'Upper Spine (Spine2)',
+    'Neck': 'Neck Joint',
+    'Head': 'Head Joint',
+    'LeftShoulder': 'Left Shoulder Base',
+    'LeftArm': 'Left Upper Arm (Bicep)',
+    'LeftForeArm': 'Left Forearm (Elbow)',
+    'LeftHand': 'Left Hand (Wrist)',
+    'RightShoulder': 'Right Shoulder Base',
+    'RightArm': 'Right Upper Arm (Bicep)',
+    'RightForeArm': 'Right Forearm (Elbow)',
+    'RightHand': 'Right Hand (Wrist)',
+    'LeftUpLeg': 'Left Thigh (Hip)',
+    'LeftLeg': 'Left Shin (Knee)',
+    'LeftFoot': 'Left Foot (Ankle)',
+    'RightUpLeg': 'Right Thigh (Hip)',
+    'RightLeg': 'Right Shin (Knee)',
+    'RightFoot': 'Right Foot (Ankle)'
   };
 
   if (name.startsWith('thumb.')) {
@@ -203,6 +223,11 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [transformMode, setTransformMode] = useState<'rotate' | 'translate'>('rotate');
   const [isDragging, setIsDragging] = useState(false);
 
+  // Floating Emoji Overlays state togglers
+  const [showSelectedJointOverlay, setShowSelectedJointOverlay] = useState(false);
+  const [showActiveModelOverlay, setShowActiveModelOverlay] = useState(false);
+  const [showSystemDebugOverlay, setShowSystemDebugOverlay] = useState(false);
+
   // Advanced sliders configurations
   const [activeSlidersTab, setActiveSlidersTab] = useState<'focused' | 'all'>('all');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
@@ -313,105 +338,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     };
   }, [gltfModel, gltfRotations]);
 
-  // Dynamic lil-gui overlay controller for testing major Mixamo rigged bone rotations
-  useEffect(() => {
-    if (!gltfModel) return;
 
-    let guiInstance: any = null;
-
-    const setupGui = () => {
-      if (!(window as any).lil || !(window as any).lil.GUI) return;
-
-      // Ensure any leftover GUI is destroyed first
-      if ((window as any)._activeAnatomyDollGui) {
-        try {
-          (window as any)._activeAnatomyDollGui.destroy();
-        } catch (e) {}
-      }
-
-      const GUI = (window as any).lil.GUI;
-      guiInstance = new GUI({
-        title: '🤸 Mannequin Bones Controller',
-        autoPlace: true
-      });
-      (window as any)._activeAnatomyDollGui = guiInstance;
-
-      const guiDom = guiInstance.domElement;
-      if (guiDom) {
-        guiDom.style.top = '100px';
-        guiDom.style.right = '20px';
-        guiDom.style.zIndex = '9999';
-        guiDom.style.position = 'absolute';
-      }
-
-      // Add major Mixamo joints requested by user
-      const targetBones = [
-        { key: 'Head', label: 'Head 🧠' },
-        { key: 'Spine', label: 'Spine 🦴' },
-        { key: 'LeftArm', label: 'Left Upper Arm 💪' },
-        { key: 'RightArm', label: 'Right Upper Arm 🛡️' },
-        { key: 'LeftForeArm', label: 'Left Forearm 🦾' },
-        { key: 'RightForeArm', label: 'Right Forearm 🦾' }
-      ];
-
-      targetBones.forEach((joint) => {
-        const bone = gltfModel.scene.getObjectByName(joint.key);
-        if (bone) {
-          const folder = guiInstance.addFolder(joint.label);
-          
-          const syncRotation = () => {
-            setGltfRotations(prev => ({
-              ...prev,
-              [joint.key]: [bone.rotation.x, bone.rotation.y, bone.rotation.z]
-            }));
-          };
-
-          const limits = { min: -3.14, max: 3.14 };
-          folder.add(bone.rotation, 'x', limits.min, limits.max, 0.01).name('Rotate X').onChange(syncRotation).listen();
-          folder.add(bone.rotation, 'y', limits.min, limits.max, 0.01).name('Rotate Y').onChange(syncRotation).listen();
-          folder.add(bone.rotation, 'z', limits.min, limits.max, 0.01).name('Rotate Z').onChange(syncRotation).listen();
-          
-          folder.open();
-        }
-      });
-    };
-
-    if (!(window as any).lil || !(window as any).lil.GUI) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/lil-gui@0.18';
-      script.async = true;
-      script.onload = () => {
-        setupGui();
-      };
-      document.head.appendChild(script);
-
-      return () => {
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
-        if (guiInstance) {
-          try {
-            guiInstance.destroy();
-          } catch (e) {}
-        }
-        if ((window as any)._activeAnatomyDollGui === guiInstance) {
-          (window as any)._activeAnatomyDollGui = null;
-        }
-      };
-    } else {
-      setupGui();
-      return () => {
-        if (guiInstance) {
-          try {
-            guiInstance.destroy();
-          } catch (e) {}
-        }
-        if ((window as any)._activeAnatomyDollGui === guiInstance) {
-          (window as any)._activeAnatomyDollGui = null;
-        }
-      };
-    }
-  }, [gltfModel]);
 
   // Attempt to load standard Supabase model on mount
   useEffect(() => {
@@ -1090,29 +1017,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
               </div>
             )}
 
-            {/* Real-time System Debug Log to match user's custom template script feedback */}
-            <div className="absolute bottom-4 left-4 right-4 bg-navy/95 border-2 border-slate-700/50 text-emerald-400 p-4 font-mono text-[11px] rounded-2xl max-h-[140px] overflow-y-auto z-30 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col gap-1">
-              <div className="font-sans font-black text-[9px] uppercase tracking-widest text-[#5bc9ff] mb-1 pb-1 border-b border-slate-700/50 flex items-center justify-between">
-                <span>System Debug Log / Διαγνωστικά Συστήματος</span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                  <span className="text-emerald-400 font-bold">● ACTIVE</span>
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5 select-text">
-                {debugLogs.map((log, index) => (
-                  <div key={index} className="leading-relaxed">
-                    {log}
-                  </div>
-                ))}
-                {downloadPercent !== null && downloadPercent < 100 && (
-                  <div className="text-sky-300 font-bold flex items-center gap-1.5 animate-pulse">
-                    <span>📥</span>
-                    <span>Λήψη 3D Μοντέλου: {downloadPercent}%</span>
-                  </div>
-                )}
-              </div>
-            </div>
+
             
             <Suspense fallback={
               <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-20">
@@ -1267,14 +1172,128 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
               </Canvas>
             </Suspense>
             
-            <div className="absolute top-6 left-6 flex flex-col gap-3 pointer-events-none">
-              <div className="px-6 py-3 bg-navy text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-2xl flex items-center gap-2 border-b-4 border-sky-400">
-                <Move size={16} />
-                Selected Joint: <span className="text-sky-300 ml-1">{selectedPart ? getFriendlyPartName(selectedPart) : 'None (Click to select)'}</span>
+            <div className="absolute top-6 left-6 z-40 flex gap-2 items-center">
+              {/* Selected Joint */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSelectedJointOverlay(!showSelectedJointOverlay);
+                    setShowActiveModelOverlay(false);
+                    setShowSystemDebugOverlay(false);
+                  }}
+                  className={`w-12 h-12 rounded-full border-4 border-navy flex items-center justify-center text-xl shadow-lg transition-transform hover:scale-110 active:scale-90 pointer-events-auto bg-white hover:bg-sky-50 cursor-pointer ${showSelectedJointOverlay ? 'bg-sky-450 border-sky-400' : ''}`}
+                  title="Selected Joint"
+                >
+                  🦴
+                </button>
+                {showSelectedJointOverlay && (
+                  <div className="absolute left-0 top-14 bg-white/95 backdrop-blur-md border-4 border-navy rounded-2xl p-4 shadow-xl w-64 pointer-events-auto z-50 text-navy font-bold text-xs uppercase tracking-wider flex flex-col gap-1">
+                    <div className="text-[10px] text-navy/40 uppercase tracking-widest font-black">Selected Joint</div>
+                    <div className="text-sky-600 font-black text-sm">{selectedPart ? getFriendlyPartName(selectedPart) : 'None (Click model to select)'}</div>
+                    <div className="text-[9px] font-mono lowercase text-navy/50">{selectedPart || 'no selection'}</div>
+                  </div>
+                )}
               </div>
-              <div className="px-4 py-2 bg-white/95 backdrop-blur-sm border-2 border-navy/15 font-black text-navy text-[10px] rounded-xl shadow-lg flex items-center gap-2">
-                <Database size={12} className="text-sky-500" />
-                Active Model: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">{modelUrl.substring(modelUrl.lastIndexOf('/') + 1) || 'Doll character6.glb'}</span>
+
+              {/* Active Model */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowActiveModelOverlay(!showActiveModelOverlay);
+                    setShowSelectedJointOverlay(false);
+                    setShowSystemDebugOverlay(false);
+                  }}
+                  className={`w-12 h-12 rounded-full border-4 border-navy flex items-center justify-center text-xl shadow-lg transition-transform hover:scale-110 active:scale-90 pointer-events-auto bg-white hover:bg-sky-50 cursor-pointer ${showActiveModelOverlay ? 'bg-sky-450 border-sky-400' : ''}`}
+                  title="Active Model"
+                >
+                  🕴️
+                </button>
+                {showActiveModelOverlay && (
+                  <div className="absolute left-0 top-14 bg-white/95 backdrop-blur-md border-4 border-navy rounded-2xl p-4 shadow-xl w-72 pointer-events-auto z-50 text-navy font-bold text-xs uppercase tracking-wider flex flex-col gap-2">
+                    <div className="text-[10px] text-navy/40 uppercase tracking-widest font-black">Active 3D Model</div>
+                    <div className="text-orange-500 font-black text-sm">{modelUrl.substring(modelUrl.lastIndexOf('/') + 1) || 'Doll.glb'}</div>
+                    <div className="text-[8px] font-mono lowercase text-navy/50 select-all break-all">{modelUrl}</div>
+                    
+                    <div className="border-t border-navy/10 pt-2 flex flex-col gap-2 mt-1">
+                      <div className="flex gap-1.5">
+                        <input 
+                          type="text"
+                          value={modelUrl}
+                          onChange={(e) => setModelUrl(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 border-2 border-navy/20 bg-white rounded-lg text-[10.5px] font-bold text-navy focus:outline-none placeholder:text-navy/30"
+                          placeholder="3D Model CDN Link..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleManualLoad(modelUrl)}
+                          disabled={supabaseLoading}
+                          className="px-2.5 bg-navy text-white font-bold text-[10px] uppercase rounded-lg hover:bg-sky-600 shrink-0"
+                        >
+                          Load
+                        </button>
+                      </div>
+
+                      {supabaseError && (
+                        <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                          <p className="text-[9px] text-orange-700 font-bold uppercase leading-tight">{supabaseError}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* System Debug Log */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSystemDebugOverlay(!showSystemDebugOverlay);
+                    setShowSelectedJointOverlay(false);
+                    setShowActiveModelOverlay(false);
+                  }}
+                  className={`w-12 h-12 rounded-full border-4 border-navy flex items-center justify-center text-xl shadow-lg transition-transform hover:scale-110 active:scale-90 pointer-events-auto bg-white hover:bg-sky-50 cursor-pointer ${showSystemDebugOverlay ? 'bg-sky-450 border-sky-400' : ''}`}
+                  title="System Diagnostics"
+                >
+                  📟
+                </button>
+                {showSystemDebugOverlay && (
+                  <div className="absolute left-0 top-14 bg-navy/95 border-4 border-slate-700 text-emerald-400 p-4 font-mono text-[10px] rounded-2xl w-[20rem] md:w-[26rem] max-h-[220px] overflow-y-auto pointer-events-auto z-50 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col gap-1">
+                    <div className="font-sans font-black text-[9px] uppercase tracking-widest text-[#5bc9ff] mb-2 pb-1 border-b border-slate-700/50 flex items-center justify-between">
+                      <span>System Diagnostics Log</span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                        <span className="text-emerald-400 font-bold">● ACTIVE</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1 select-text">
+                      {debugLogs.map((log, index) => (
+                        <div key={index} className="leading-tight">{log}</div>
+                      ))}
+                      {downloadPercent !== null && downloadPercent < 100 && (
+                        <div className="text-sky-300 font-bold flex items-center gap-1 animate-pulse">
+                          <span>📥</span>
+                          <span>Downloading: {downloadPercent}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-slate-700/50 pt-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if ((window as any).testPose) {
+                            (window as any).testPose();
+                          }
+                        }}
+                        className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-sans font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-md"
+                      >
+                        <Sparkles size={11} /> Δοκιμή Πόζας (Test Pose)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -1291,306 +1310,114 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
           </div>
 
           {/* Right: Controller & Options Pane */}
-          <div className="w-full lg:w-96 flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar shrink-0">
-            {/* Custom URL controller loaded directly */}
-            <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-4">
-              <h3 className="font-black text-navy text-md uppercase leading-none tracking-tight flex items-center gap-2">
-                <Database size={18} className="text-sky-600" /> Supabase Storage URL
+          <div className="w-full lg:w-96 flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar shrink-0 bg-[#141416] p-5 border-4 border-navy rounded-[2.2rem] text-zinc-100 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3 border-zinc-800">
+              <h3 className="font-mono font-black text-xs uppercase tracking-wider flex items-center gap-2 text-[#fbbf24]">
+                🤸 MANNEQUIN BONES CONTROLLER
               </h3>
-              
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center gap-2 justify-between">
-                  <label className="text-[10px] font-black uppercase text-navy/40 tracking-wider flex items-center gap-1">
-                    <Link2 size={10} /> Active 3D Model CDN Endpoint:
-                  </label>
-                  {supabaseLoaded && (
-                    <span className="text-[8px] bg-green-500 text-white font-bold px-1.5 py-0.5 rounded uppercase">Connected</span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <input 
-                    type="text"
-                    value={modelUrl}
-                    onChange={(e) => setModelUrl(e.target.value)}
-                    placeholder="https://.../model.obj"
-                    className="flex-1 px-3 py-2 border-2 border-navy/20 bg-white rounded-lg text-[11px] font-bold text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleManualLoad(modelUrl)}
-                    disabled={supabaseLoading}
-                    className="px-3 bg-navy text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 active:scale-95 transition-all cursor-pointer shrink-0 disabled:opacity-50"
-                  >
-                    Load
-                  </button>
-                </div>
-              </div>
-
-              {supabaseError && (
-                <div className="p-3 bg-orange-50 border-2 border-orange-200 rounded-xl flex gap-1.5 items-start">
-                  <AlertCircle size={14} className="text-orange-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-orange-700 font-bold leading-tight uppercase">{supabaseError}</p>
-                </div>
-              )}
+              <span className="text-[9px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded uppercase font-bold">CONNECTED</span>
             </div>
 
-            {/* AI Pose Controller Integration */}
-            <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-4">
-              <h3 className="font-black text-navy text-md uppercase leading-none tracking-tight flex items-center gap-2">
-                <Sparkles size={18} className="text-indigo-600 animate-pulse animate-duration-1000" /> AI Pose Controller
-              </h3>
-              <p className="text-[11px] font-bold text-navy/70 leading-relaxed uppercase">
-                Μόλις το Gemini επιστρέψει το JSON, η συνάρτηση <code className="bg-navy/10 px-1 py-0.5 rounded text-navy">applyGeminiPose()</code> θα αλλάξει την πόζα της κούκλας.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if ((window as any).testPose) {
-                    (window as any).testPose();
-                  }
-                }}
-                className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Sparkles size={14} /> Δοκιμή Πόζας (Test Pose)
-              </button>
-            </div>
-
-            {/* Mesh & rotation precision values */}
-            <div className="bg-slate-50 p-5 border-4 border-navy rounded-[2.2rem] space-y-4">
-              <h3 className="font-black text-navy uppercase text-lg leading-none flex items-center gap-2">
-                <div className="w-8 h-8 bg-navy text-white rounded-lg flex items-center justify-center">
-                  <Sliders size={18} />
-                </div>
-                Mannequin Pivot Edit
-              </h3>
-
-              {/* Tab Selector for Focused vs. All Bones */}
-              <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10 select-none">
-                <button
-                  type="button"
-                  onClick={() => setActiveSlidersTab('all')}
-                  className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${activeSlidersTab === 'all' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
-                >
-                  All Bones Sliders
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveSlidersTab('focused')}
-                  className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${activeSlidersTab === 'focused' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
-                >
-                  Selected Bone Only
-                </button>
+            <div className="space-y-4 pt-1 flex-1 overflow-y-auto pr-1">
+              <div className="bg-[#1e1e24] p-3 border border-zinc-800 rounded-xl text-[10px] font-mono text-zinc-300 leading-relaxed uppercase">
+                💡 Click on any joint panel below or select directly from the 3D viewport to adjust sliders!
               </div>
 
-              {activeSlidersTab === 'all' ? (
-                <div className="space-y-3 pt-1">
-                  <div className="bg-sky-50 p-2.5 border border-sky-200 rounded-xl text-[10px] font-bold text-navy/70 leading-relaxed uppercase">
-                    💡 Click on any joint name to select and overlay 3D handles in viewport!
-                  </div>
-                  {groupedBones.map(([catKey, category]) => {
-                    const isOpen = openCategories[catKey] || false;
-                    return (
-                      <div key={catKey} className="border-2 border-navy/15 rounded-2xl overflow-hidden bg-white/50">
-                        <button
-                          type="button"
-                          onClick={() => setOpenCategories(prev => ({ ...prev, [catKey]: !prev[catKey] }))}
-                          className="w-full px-4 py-2.5 bg-navy/5 border-b-2 border-navy/5 text-left font-black text-[11px] uppercase tracking-wider text-navy flex justify-between items-center hover:bg-navy/10 transition-all"
-                        >
-                          <span>{category.label}</span>
-                          <span className="text-xs">{isOpen ? '▼' : '▶'}</span>
-                        </button>
-                        
-                        {isOpen && (
-                          <div className="p-3 space-y-4 max-h-96 overflow-y-auto custom-scrollbar bg-white/20">
-                            {category.bones.map((boneName) => {
-                              const isBoneSelected = selectedPart === boneName;
-                              return (
-                                <div key={boneName} className={`space-y-2 p-2 rounded-xl border-2 transition-all ${isBoneSelected ? 'bg-sky-50 border-sky-300 shadow-sm' : 'border-transparent'}`}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedPart(boneName)}
-                                    className="w-full text-left font-black text-[10px] uppercase tracking-normal text-navy flex items-center justify-between"
-                                  >
-                                    <span className="truncate hover:text-sky-600 transition-colors">
-                                      {isBoneSelected ? '● ' : ''}{getFriendlyPartName(boneName)}
-                                    </span>
-                                    <span className="text-[9px] text-navy/40 lowercase tracking-tight opacity-70">
-                                      {boneName}
-                                    </span>
-                                  </button>
-                                  
-                                  <div className="grid grid-cols-1 gap-1.5 pt-1 border-t border-navy/5">
-                                    {['X', 'Y', 'Z'].map((axisLabel, axisIdx) => {
-                                      const val = gltfRotations[boneName] ? gltfRotations[boneName][axisIdx] : 0;
-                                      return (
-                                        <div key={`${boneName}-${axisLabel}`} className="flex items-center gap-2">
-                                          <span className="text-[9px] font-black text-navy/50 w-3">{axisLabel}</span>
-                                          <input 
-                                            type="range"
-                                            min={-Math.PI}
-                                            max={Math.PI}
-                                            step={0.01}
-                                            value={val}
-                                            onChange={(e) => updateBoneRotation(boneName, axisIdx, parseFloat(e.target.value))}
-                                            className="flex-1 h-2 appearance-none bg-navy/10 cursor-pointer accent-sky-500 rounded-full"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
-                                          <span className="text-[9px] font-mono text-navy font-bold w-8 text-right bg-blue-50 px-1 py-0.5 rounded border border-blue-100/30">
-                                            {Math.round(val * 180 / Math.PI)}°
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+              {groupedBones.map(([catKey, category]) => {
+                const isOpen = openCategories[catKey] ?? true;
+                if (category.bones.length === 0) return null;
+
+                return (
+                  <div key={catKey} className="border border-zinc-800 rounded-xl overflow-hidden bg-[#18181c]/90">
+                    <button
+                      type="button"
+                      onClick={() => setOpenCategories(prev => ({ ...prev, [catKey]: !prev[catKey] }))}
+                      className="w-full px-4 py-2.5 bg-[#202025] text-left font-mono font-bold text-[10.5px] uppercase tracking-wider text-zinc-200 flex justify-between items-center hover:bg-[#25252b] transition-all border-b border-zinc-800"
+                    >
+                      <span className="flex items-center gap-1.5">{category.label}</span>
+                      <span className="text-xs text-zinc-400 font-mono">{isOpen ? '▼' : '▶'}</span>
+                    </button>
+                    
+                    {isOpen && (
+                      <div className="p-3 space-y-3 bg-[#111114]/70">
+                        {category.bones.map((boneName) => {
+                          const isBoneSelected = selectedPart === boneName;
+                          return (
+                            <div key={boneName} className={`space-y-2 p-2.5 rounded-lg border transition-all ${isBoneSelected ? 'bg-zinc-900/90 border-[#fbbf24]' : 'border-zinc-800 bg-[#16161a]/60 hover:bg-[#1a1a20]'}`}>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPart(boneName)}
+                                className="w-full text-left font-mono font-bold text-[10px] uppercase tracking-normal text-zinc-300 flex items-center justify-between"
+                              >
+                                <span className="truncate hover:text-[#fbbf24] transition-colors flex items-center gap-1.5">
+                                  {isBoneSelected ? <span className="text-[#fbbf24] text-xs">●</span> : ''}
+                                  {getFriendlyPartName(boneName)}
+                                </span>
+                                <span className="text-[8px] text-zinc-500 font-mono lower">
+                                  {boneName}
+                                </span>
+                              </button>
+                              
+                              <div className="grid grid-cols-1 gap-2 pt-2 border-t border-zinc-800/50">
+                                {['Rotate X', 'Rotate Y', 'Rotate Z'].map((axisLabel, axisIdx) => {
+                                  const val = gltfRotations[boneName] ? gltfRotations[boneName][axisIdx] : 0;
+                                  return (
+                                    <div key={`${boneName}-${axisLabel}`} className="flex flex-col gap-1">
+                                      <div className="flex justify-between items-center text-[8.5px] font-mono text-zinc-400 leading-none">
+                                        <span>{axisLabel}</span>
+                                        <span className="text-[9.5px] text-[#fbbf24] font-bold bg-[#111] px-1.5 py-0.5 rounded border border-zinc-800 min-w-[34px] text-center">
+                                          {Math.round(val * 180 / Math.PI)}°
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-bold text-zinc-500 w-3 font-mono text-center">{axisLabel.split(' ')[1]}</span>
+                                        <input 
+                                          type="range"
+                                          min={-Math.PI}
+                                          max={Math.PI}
+                                          step={0.01}
+                                          value={val}
+                                          onChange={(e) => updateBoneRotation(boneName, axisIdx, parseFloat(e.target.value))}
+                                          className="flex-1 h-1.5 bg-zinc-800 cursor-pointer accent-[#fbbf24] rounded-full hover:accent-amber-400"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* List Dropdown for Supabase bones */}
-                  {Object.keys(gltfRotations).length > 0 && (
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
-                        Select Part to Move:
-                      </label>
-                      <select 
-                        value={selectedPart}
-                        onChange={(e) => setSelectedPart(e.target.value)}
-                        className="w-full p-2.5 bg-white border-2 border-navy rounded-xl font-bold text-xs text-navy uppercase tracking-wide focus:outline-none"
-                      >
-                        {Object.keys(gltfRotations).map((partName) => (
-                          <option key={partName} value={partName}>
-                            {getFriendlyPartName(partName)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Mode Toggler */}
-                  <div className="space-y-1.5 pt-1">
-                    <label className="block text-[10px] font-black uppercase text-navy/50 tracking-wider">
-                      Transformation Mode:
-                    </label>
-                    <div className="flex bg-navy/5 p-1 rounded-xl border border-navy/10 select-none">
-                      <button
-                        type="button"
-                        onClick={() => setTransformMode('rotate')}
-                        className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'rotate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'}`}
-                      >
-                        <RefreshCw size={12} /> Rotate
-                      </button>
-                      <button
-                        type="button"
-                        disabled={selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene)}
-                        onClick={() => setTransformMode('translate')}
-                        className={`flex-1 py-2 px-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${transformMode === 'translate' ? 'bg-navy text-white shadow-md' : 'text-navy/50 hover:text-navy'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                      >
-                        <Move size={12} /> Translate
-                      </button>
-                    </div>
-                    {selectedObject && gltfModel && !canTranslateObject(selectedObject, gltfModel.scene) && (
-                      <p className="text-[10px] text-orange-500 font-bold uppercase mt-1.5 bg-orange-50 border border-orange-100 p-2 rounded-xl">
-                        ⚠️ Joint can only be rotated to keep the mannequin connected!
-                      </p>
                     )}
                   </div>
-
-                  {/* Interactive sliders based on transform mode */}
-                  <div className="space-y-4 pt-2">
-                    {transformMode === 'rotate' ? (
-                      ['X Rotation', 'Y Rotation', 'Z Rotation'].map((axis, i) => {
-                        const val = gltfRotations[selectedPart] ? gltfRotations[selectedPart][i] : 0;
-                        return (
-                          <div key={axis} className="space-y-2">
-                            <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
-                              <span>{axis}</span>
-                              <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
-                                {Math.round(val * 180 / Math.PI)}°
-                              </div>
-                            </div>
-                            <div className="relative flex items-center group">
-                              <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
-                              <input 
-                                type="range"
-                                min={-Math.PI}
-                                max={Math.PI}
-                                step={0.001}
-                                value={val}
-                                onChange={(e) => updateGltfRotation(i, parseFloat(e.target.value))}
-                                className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-500"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      ['X Position', 'Y Position', 'Z Position'].map((axis, i) => {
-                        const val = gltfTranslations[selectedPart] ? gltfTranslations[selectedPart][i] : 0;
-                        return (
-                          <div key={axis} className="space-y-2">
-                            <div className="flex justify-between items-center font-black text-navy uppercase tracking-widest text-[9px]">
-                              <span>{axis}</span>
-                              <div className="bg-navy text-white px-2 py-0.5 rounded-md text-[8px]">
-                                {val.toFixed(3)}
-                              </div>
-                            </div>
-                            <div className="relative flex items-center group">
-                              <div className="absolute left-0 right-0 h-1.5 bg-navy/15 rounded-full" />
-                              <input 
-                                type="range"
-                                min={-2.0}
-                                max={2.0}
-                                step={0.001}
-                                value={val}
-                                onChange={(e) => updateGltfTranslation(i, parseFloat(e.target.value))}
-                                className="w-full h-8 appearance-none bg-transparent cursor-pointer relative z-10 accent-sky-400"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
 
-            {/* Interaction buttons */}
-            <div className="grid grid-cols-1 gap-3">
+            {/* Actions Panel */}
+            <div className="grid grid-cols-1 gap-3 pt-3 border-t border-zinc-800">
               <button
                 type="button"
                 onClick={resetMannequin}
-                className="flex items-center justify-center gap-3 w-full py-4 bg-white border-4 border-navy text-navy rounded-2xl font-black uppercase tracking-wider hover:bg-red-50 hover:border-red-500 hover:text-red-500 transition-all active:scale-95 cursor-pointer text-xs animate-none"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 text-zinc-300 rounded-xl font-mono text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer hover:bg-zinc-800"
               >
-                <RotateCcw size={18} strokeWidth={3} />
+                <RotateCcw size={14} />
                 Reset Skeleton
               </button>
               
               <button
                 type="button"
                 onClick={handleCapture}
-                className="group flex flex-col items-center justify-center gap-1 w-full py-6 bg-sky-400 border-4 border-navy text-navy rounded-[2.2rem] font-black uppercase tracking-widest shadow-[8px_8px_0px_0px_rgba(0,0,128,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all active:scale-95 cursor-pointer"
+                className="group flex flex-col items-center justify-center gap-0.5 w-full py-4.5 bg-[#fbbf24] border-2 border-zinc-950 text-zinc-950 rounded-2xl font-mono font-black uppercase tracking-wider shadow-[0_4px_12px_rgba(251,191,36,0.25)] hover:bg-amber-400 transition-all active:scale-95 cursor-pointer"
               >
-                <div className="flex items-center gap-3 text-2xl">
-                  <Check size={30} strokeWidth={4} />
+                <div className="flex items-center gap-2 text-md font-black">
+                  <Check size={18} strokeWidth={3} />
                   SAVE POSE
                 </div>
-                <span className="text-[9px] uppercase font-bold opacity-60">Generate drawings tutorial</span>
+                <span className="text-[8px] font-mono uppercase font-bold text-zinc-800/80">Generate drawings tutorial</span>
               </button>
-            </div>
-
-            <div className="bg-sky-50 p-4 border border-navy/15 rounded-[1.8rem] flex gap-3 items-start">
-              <div className="text-xl">💡</div>
-              <p className="text-[10px] font-bold text-navy/70 leading-relaxed uppercase">
-                <span className="text-navy">Instructor Tip:</span> Toggle between <span className="text-navy">Rotate</span> and <span className="text-navy">Translate</span> to perfectly fine-tune unrigged model joints!
-              </p>
             </div>
           </div>
         </div>
