@@ -206,11 +206,102 @@ const mapDEFToActualBone = (name: string): string => {
   return target;
 };
 
+// Extremely performant sub-component to handle independent joint inputs
+const BoneItemController = React.memo(({ 
+  boneName, 
+  friendlyName, 
+  isSelected, 
+  onSelect, 
+  rotation, 
+  updateBoneRotation 
+}: { 
+  boneName: string; 
+  friendlyName: string; 
+  isSelected: boolean; 
+  onSelect: () => void; 
+  rotation: [number, number, number]; 
+  updateBoneRotation: (boneName: string, axis: number, value: number) => void; 
+}) => {
+  // Local state for layout-independent hyper-responsive sliders updates (120fps)
+  const [localRot, setLocalRot] = useState<[number, number, number]>(rotation);
+
+  // Synchronise if parent's rotation state changes (e.g., loading presets / resets / Gemini updates)
+  useEffect(() => {
+    setLocalRot(rotation);
+  }, [rotation]);
+
+  const handleChange = (axisIdx: number, val: number) => {
+    setLocalRot(prev => {
+      const next = [...prev] as [number, number, number];
+      next[axisIdx] = val;
+      return next;
+    });
+    updateBoneRotation(boneName, axisIdx, val);
+  };
+
+  return (
+    <div className={`space-y-2 p-2.5 rounded-lg border transition-all ${isSelected ? 'bg-zinc-900/90 border-[#fbbf24]' : 'border-zinc-800 bg-[#16161a]/60 hover:bg-[#1a1a20]'}`}>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="w-full text-left font-mono font-bold text-[10px] uppercase tracking-normal text-zinc-300 flex items-center justify-between"
+      >
+        <span className="truncate hover:text-[#fbbf24] transition-colors flex items-center gap-1.5">
+          {isSelected ? <span className="text-[#fbbf24] text-xs">●</span> : ''}
+          {friendlyName}
+        </span>
+        <span className="text-[8px] text-zinc-500 font-mono">
+          {boneName}
+        </span>
+      </button>
+      
+      <div className="grid grid-cols-1 gap-2 pt-2 border-t border-zinc-800/50">
+        {['Rotate X', 'Rotate Y', 'Rotate Z'].map((axisLabel, axisIdx) => {
+          const val = localRot ? localRot[axisIdx] : 0;
+          return (
+            <div key={`${boneName}-${axisLabel}`} className="flex flex-col gap-1">
+              <div className="flex justify-between items-center text-[8.5px] font-mono text-zinc-400 leading-none">
+                <span>{axisLabel}</span>
+                <span className="text-[9.5px] text-[#fbbf24] font-bold bg-[#111] px-1.5 py-0.5 rounded border border-zinc-800 min-w-[34px] text-center">
+                  {Math.round(val * 180 / Math.PI)}°
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-bold text-zinc-500 w-3 font-mono text-center">{axisLabel.split(' ')[1]}</span>
+                <input 
+                  type="range"
+                  min={-Math.PI}
+                  max={Math.PI}
+                  step={0.01}
+                  value={val}
+                  onChange={(e) => handleChange(axisIdx, parseFloat(e.target.value))}
+                  className="flex-1 h-1.5 bg-zinc-800 cursor-pointer accent-[#fbbf24] rounded-full hover:accent-amber-400"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render if selection state or bone rotation changes
+  const rotationEqual = prevProps.rotation[0] === nextProps.rotation[0] &&
+                        prevProps.rotation[1] === nextProps.rotation[1] &&
+                        prevProps.rotation[2] === nextProps.rotation[2];
+  return prevProps.isSelected === nextProps.isSelected && 
+         prevProps.boneName === nextProps.boneName && 
+         prevProps.friendlyName === nextProps.friendlyName &&
+         rotationEqual;
+});
+
 const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Model state configurations
   const [selectedPart, setSelectedPart] = useState<string>('');
+  const [boneNames, setBoneNames] = useState<string[]>([]);
   const [gltfModel, setGltfModel] = useState<any>(null);
   const [gltfRotations, setGltfRotations] = useState<Record<string, [number, number, number]>>({});
   const [gltfTranslations, setGltfTranslations] = useState<Record<string, [number, number, number]>>({});
@@ -249,7 +340,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       other: { label: 'Other/Custom Joints ⚙️', bones: [] },
     };
 
-    Object.keys(gltfRotations).forEach((part) => {
+    boneNames.forEach((part) => {
       const lower = part.toLowerCase();
       if (lower.includes('spine') || lower.includes('neck') || lower.includes('head')) {
         categories.spine.bones.push(part);
@@ -267,7 +358,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     });
 
     return Object.entries(categories).filter(([_, cat]) => cat.bones.length > 0);
-  }, [gltfRotations]);
+  }, [boneNames]);
 
   // Supabase / Custom model loading state
   const [supabaseLoading, setSupabaseLoading] = useState(false);
@@ -662,6 +753,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
         puppet.position.z = -scaledCenter2.z;
 
         setGltfModel({ scene: puppet });
+        setBoneNames(parts);
         setOriginalPositions(initialPositions);
         setOriginalRotations(initialRotations);
         setGltfRotations(initialRotations);
@@ -745,6 +837,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     objGroup.position.z += (objGroup.position.z - center.z);
 
     setGltfModel({ scene: objGroup });
+    setBoneNames(parts);
     setOriginalPositions(initialPositions);
     setOriginalRotations(initialRotations);
     setGltfRotations(initialRotations);
@@ -841,6 +934,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     gltf.scene.position.z += (gltf.scene.position.z - center.z);
 
     setGltfModel(gltf);
+    setBoneNames(parts);
     setOriginalPositions(initialPositions);
     setOriginalRotations(initialRotations);
     setGltfRotations(initialRotations);
@@ -1128,7 +1222,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                     />
                     
                     {/* Render clickable and visible bone joint helper spheres so users can select and pose easily */}
-                    {Object.keys(gltfRotations).map((partName) => {
+                    {boneNames.map((partName) => {
                       const bone = gltfModel.scene.getObjectByName(partName);
                       if (!bone || !bone.isBone) return null;
                       
@@ -1342,51 +1436,17 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                       <div className="p-3 space-y-3 bg-[#111114]/70">
                         {category.bones.map((boneName) => {
                           const isBoneSelected = selectedPart === boneName;
+                          const rotationVal = gltfRotations[boneName] || [0, 0, 0];
                           return (
-                            <div key={boneName} className={`space-y-2 p-2.5 rounded-lg border transition-all ${isBoneSelected ? 'bg-zinc-900/90 border-[#fbbf24]' : 'border-zinc-800 bg-[#16161a]/60 hover:bg-[#1a1a20]'}`}>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedPart(boneName)}
-                                className="w-full text-left font-mono font-bold text-[10px] uppercase tracking-normal text-zinc-300 flex items-center justify-between"
-                              >
-                                <span className="truncate hover:text-[#fbbf24] transition-colors flex items-center gap-1.5">
-                                  {isBoneSelected ? <span className="text-[#fbbf24] text-xs">●</span> : ''}
-                                  {getFriendlyPartName(boneName)}
-                                </span>
-                                <span className="text-[8px] text-zinc-500 font-mono lower">
-                                  {boneName}
-                                </span>
-                              </button>
-                              
-                              <div className="grid grid-cols-1 gap-2 pt-2 border-t border-zinc-800/50">
-                                {['Rotate X', 'Rotate Y', 'Rotate Z'].map((axisLabel, axisIdx) => {
-                                  const val = gltfRotations[boneName] ? gltfRotations[boneName][axisIdx] : 0;
-                                  return (
-                                    <div key={`${boneName}-${axisLabel}`} className="flex flex-col gap-1">
-                                      <div className="flex justify-between items-center text-[8.5px] font-mono text-zinc-400 leading-none">
-                                        <span>{axisLabel}</span>
-                                        <span className="text-[9.5px] text-[#fbbf24] font-bold bg-[#111] px-1.5 py-0.5 rounded border border-zinc-800 min-w-[34px] text-center">
-                                          {Math.round(val * 180 / Math.PI)}°
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[8px] font-bold text-zinc-500 w-3 font-mono text-center">{axisLabel.split(' ')[1]}</span>
-                                        <input 
-                                          type="range"
-                                          min={-Math.PI}
-                                          max={Math.PI}
-                                          step={0.01}
-                                          value={val}
-                                          onChange={(e) => updateBoneRotation(boneName, axisIdx, parseFloat(e.target.value))}
-                                          className="flex-1 h-1.5 bg-zinc-800 cursor-pointer accent-[#fbbf24] rounded-full hover:accent-amber-400"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                            <BoneItemController 
+                              key={boneName}
+                              boneName={boneName}
+                              friendlyName={getFriendlyPartName(boneName)}
+                              isSelected={isBoneSelected}
+                              onSelect={() => setSelectedPart(boneName)}
+                              rotation={rotationVal}
+                              updateBoneRotation={updateBoneRotation}
+                            />
                           );
                         })}
                       </div>
