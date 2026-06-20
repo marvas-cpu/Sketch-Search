@@ -626,23 +626,27 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     });
 
-    // 1. Scale model automatically to standard 1.8 units tall
+    // --- ΕΠΙΘΕΤΙΚΟ ΑΥΤΟΜΑΤΟ ΖΟΟΜ ΚΑΙ ΕΥΡΕΣΗ ΜΟΝΤΕΛΟΥ ---
     const box = new THREE.Box3().setFromObject(objGroup);
     const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    // Αν το μοντέλο βγήκε τεράστιο ή μικρό από το Blender, το αναγκάζουμε να έρθει σε νορμάλ μέγεθος
     const maxDim = Math.max(size.x, size.y, size.z);
     if (maxDim > 0) {
-      const scaleFactor = 1.8 / maxDim;
-      objGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        // Αν το μοντέλο είναι π.χ. 100 μέτρα, το μικραίνουμε για να χωράει στην κάμερα
+        const scaleFactor = 2.0 / maxDim;
+        objGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        
+        // Ξαναϋπολογίζουμε το κέντρο μετά το scale
+        box.setFromObject(objGroup);
+        box.getCenter(center);
     }
 
-    objGroup.updateMatrixWorld(true);
-
-    // 2. Align model's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
-    const scaledBox = new THREE.Box3().setFromObject(objGroup);
-    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-    objGroup.position.x = -scaledCenter.x;
-    objGroup.position.y = -scaledBox.min.y;
-    objGroup.position.z = -scaledCenter.z;
+    // Μεταφέρουμε το μοντέλο ακριβώς στο κέντρο της οθόνης (0, 0, 0)
+    objGroup.position.x += (objGroup.position.x - center.x);
+    objGroup.position.y += (objGroup.position.y - center.y);
+    objGroup.position.z += (objGroup.position.z - center.z);
 
     setGltfModel({ scene: objGroup });
     setOriginalPositions(initialPositions);
@@ -710,25 +714,27 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
       }
     });
 
-    // 1. Scale model automatically to standard 1.8 units tall
+    // --- ΕΠΙΘΕΤΙΚΟ ΑΥΤΟΜΑΤΟ ΖΟΟΜ ΚΑΙ ΕΥΡΕΣΗ ΜΟΝΤΕΛΟΥ ---
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    // Αν το μοντέλο βγήκε τεράστιο ή μικρό από το Blender, το αναγκάζουμε να έρθει σε νορμάλ μέγεθος
     const maxDim = Math.max(size.x, size.y, size.z);
-    
     if (maxDim > 0) {
-      const scaleFactor = 1.8 / maxDim;
-      gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        // Αν το μοντέλο είναι π.χ. 100 μέτρα, το μικραίνουμε για να χωράει στην κάμερα
+        const scaleFactor = 2.0 / maxDim;
+        gltf.scene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        
+        // Ξαναϋπολογίζουμε το κέντρο μετά το scale
+        box.setFromObject(gltf.scene);
+        box.getCenter(center);
     }
 
-    gltf.scene.updateMatrixWorld(true);
-
-    // 2. Align model's horizontal center, and place bottom of feet exactly on the grid level (y = 0)
-    const scaledBox = new THREE.Box3().setFromObject(gltf.scene);
-    const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
-    
-    gltf.scene.position.x = -scaledCenter.x;
-    gltf.scene.position.y = -scaledBox.min.y;
-    gltf.scene.position.z = -scaledCenter.z;
+    // Μεταφέρουμε το μοντέλο ακριβώς στο κέντρο της οθόνης (0, 0, 0)
+    gltf.scene.position.x += (gltf.scene.position.x - center.x);
+    gltf.scene.position.y += (gltf.scene.position.y - center.y);
+    gltf.scene.position.z += (gltf.scene.position.z - center.z);
 
     setGltfModel(gltf);
     setOriginalPositions(initialPositions);
@@ -961,7 +967,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
                 />
 
                 {gltfModel && (
-                  <group position={[0, -1, 0]}>
+                  <group position={[0, 0, 0]}>
                     <primitive 
                       object={gltfModel.scene} 
                       onClick={(e: any) => {
