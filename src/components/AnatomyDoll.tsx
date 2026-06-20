@@ -181,7 +181,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
   const [supabaseLoading, setSupabaseLoading] = useState(false);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
-  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character5.glb');
+  const [modelUrl, setModelUrl] = useState('https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character6.glb');
 
   // Debug system logger to match user's custom template script feedback
   const [debugLogs, setDebugLogs] = useState<string[]>(['Αναμονή για εκκίνηση φόρτωσης...']);
@@ -288,6 +288,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
     setSupabaseLoading(true);
     setSupabaseError(null);
     const candidates = [
+      'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character6.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character5.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character4.glb',
       'https://cfiecgwbfcebzvvyqfaw.supabase.co/storage/v1/object/public/3D%20Doll/Doll%20character3.glb',
@@ -1097,7 +1098,7 @@ const AnatomyDoll: React.FC<AnatomyDollProps> = ({ onCapture, onClose }) => {
               </div>
               <div className="px-4 py-2 bg-white/95 backdrop-blur-sm border-2 border-navy/15 font-black text-navy text-[10px] rounded-xl shadow-lg flex items-center gap-2">
                 <Database size={12} className="text-sky-500" />
-                Active Model: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">{modelUrl.substring(modelUrl.lastIndexOf('/') + 1) || 'Doll character5.glb'}</span>
+                Active Model: <span className="text-orange-500 text-[11px] font-black uppercase tracking-wider">{modelUrl.substring(modelUrl.lastIndexOf('/') + 1) || 'Doll character6.glb'}</span>
               </div>
             </div>
             
