@@ -141,7 +141,7 @@ const SketchCanvas: React.FC<SketchCanvasProps> = ({ tutorialTitle, tutorialDesc
         ctx.drawImage(graphicsCanvas, 0, 0);
         
         const imageUri = tempCanvas.toDataURL('image/png');
-        const aiFeedback = await getSketchFeedback(imageUri, tutorialTitle, tutorialDescription, tutorialLevel);
+        const aiFeedback = await getSketchFeedback(imageUri, tutorialTitle, tutorialDescription, tutorialLevel, imageUrl);
         setFeedback(aiFeedback || "Great job! Keep practicing.");
       }
     } catch (error) {
