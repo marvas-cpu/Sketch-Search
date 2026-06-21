@@ -632,6 +632,7 @@ export default function App() {
                         alt={tutorial.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
                       />
                     </div>
                     <div className="p-8">
@@ -770,6 +771,7 @@ export default function App() {
                             alt={selectedTutorial.title}
                             className="w-full h-auto object-contain rounded-2xl animate-sketch"
                             referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
                           />
                         </motion.div>
                       </div>

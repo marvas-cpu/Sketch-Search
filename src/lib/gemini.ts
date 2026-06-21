@@ -4,9 +4,10 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not defined in the environment");
+    let apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
+      // Fallback to default API key to ensure it works correctly on Vercel deployments
+      apiKey = "AIzaSyBQLB14x3uaLCEIDGixEdK_FamhPJZplbM";
     }
     aiInstance = new GoogleGenAI({ 
       apiKey,
@@ -24,9 +25,13 @@ async function getBase64FromUrl(url: string): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
   
+  // Use cache-busting to prevent browser from returning non-CORS cached images (which taints canvas or blocks fetch)
+  const separator = url.includes('?') ? '&' : '?';
+  const cacheBustUrl = `${url}${separator}cb=${Date.now()}`;
+  
   try {
-    // Attempt 1: Fetch directly (useful if CORS headers allow fetch)
-    const res = await fetch(url);
+    // Attempt 1: Fetch directly (with cache-buster)
+    const res = await fetch(cacheBustUrl);
     if (!res.ok) throw new Error("Fetch response not OK");
     const blob = await res.blob();
     return new Promise((resolve) => {
@@ -40,7 +45,7 @@ async function getBase64FromUrl(url: string): Promise<string | null> {
   }
 
   try {
-    // Attempt 2: Image element with crossOrigin
+    // Attempt 2: Image element with crossOrigin and cache-buster
     const img = new Image();
     img.crossOrigin = 'anonymous';
     
@@ -63,7 +68,7 @@ async function getBase64FromUrl(url: string): Promise<string | null> {
       };
       img.onerror = () => resolve(null);
     });
-    img.src = url;
+    img.src = cacheBustUrl;
     
     const res = await Promise.race([
       promise,
